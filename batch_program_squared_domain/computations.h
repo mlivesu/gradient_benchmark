@@ -79,5 +79,11 @@ void bring_the_field_inside(const DrawableTrimesh<> &m, DrawableTrimesh<> &m_gri
 vec3d barycentric_coordinates(const vec3d &A,const vec3d &B, const vec3d &C, const vec3d &P);
 DrawableVectorField compute_PCE(const DrawableTrimesh<> & m, ScalarField &f);
 DrawableVectorField compute_AGS(const DrawableTrimesh<> & m, ScalarField &f, int weight=0);
+DrawableVectorField GG_on_verts(const DrawableTrimesh<> & m, ScalarField &f);
 std::vector<double> compute_for_hist(DrawableTrimesh<> &m, DrawableTrimesh<> &grid,const int method,const double a, const double b,const int tri_type, const int N, ScalarField &F,const double anisotropy,int without_boundary,int mode,int weight);
+void build_matrix_for_LSDD(DrawableTrimesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::Matrix2d> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs);
+void build_matrix_for_LR(DrawableTrimesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs);
+void factorize(std::vector<Eigen::MatrixXd> M);
+void solve_for_LSDD(DrawableTrimesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::Matrix2d> > &M, std::vector<Eigen::MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation);
+void solve_for_LR(DrawableTrimesh<> &m,DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation);
 #endif // COMPUTATIONS_H

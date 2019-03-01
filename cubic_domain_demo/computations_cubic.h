@@ -53,7 +53,7 @@ typedef struct{
 COMPUTATIONS;
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-bool vector_contains_value(const std::vector<uint> &v,const uint value);
+bool vector_contains_value(std::vector<uint> &v, const uint value);
 bool poly_has_vert_on_srf (const DrawableTetmesh<> &m, uint pid);
 double relative_error(const vec3d v1, const vec3d v2, const int mode);
 double absolute_error(const vec3d v1, const vec3d v2, const int mode);
@@ -67,7 +67,7 @@ void find_max_min_values (const ScalarField f, double &max, double &min);
 ScalarField heat_map_normalization(const ScalarField &f,double min,double max,double scale_factor);
 
 
-DrawableVectorField compute_field(const DrawableTetmesh<> &m, ScalarField & f, const int method);
+DrawableVectorField compute_field(DrawableTetmesh<> &m, ScalarField & f, const int method);
 ScalarField get_scalar_field(const DrawableTetmesh<> &m, const double a, const double b, const int method,int noise,double k);
 
 DrawableVectorField compute_quadratic_regression(const DrawableTetmesh<> &m, const ScalarField & f);
@@ -94,5 +94,10 @@ void bring_the_field_inside(const DrawableTetmesh<> &m, DrawableTetmesh<> &m_gri
 std::vector<double> barycentric_coordinates(const vec3d &A,const vec3d &B, const vec3d &C, const vec3d &D, const vec3d &P);
 DrawableVectorField compute_PCE(const DrawableTetmesh<> & m, ScalarField &f);
 DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f);
+DrawableVectorField GG_on_verts(const DrawableTetmesh<> & m, ScalarField &f);
+void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs);
+void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs);
+void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs);
+void solve_for_LR(DrawableTetmesh<> &m,DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs);
 
 #endif // COMPUTATIONS_H

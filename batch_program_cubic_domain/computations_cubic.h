@@ -85,7 +85,11 @@ std::vector<double> barycentric_coordinates(const vec3d &A,const vec3d &B, const
 DrawableVectorField compute_PCE(const DrawableTetmesh<> & m, const ScalarField &f);
 DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f, int weight=0);
 std::vector<double> compute_for_hist(DrawableTetmesh<> &m, DrawableTetmesh<> &grid,const int method,const double a, const double b,const int tri_type, const int N, ScalarField &F,const double anisotropy,int without_boundary,int mode,int weight);
-
+DrawableVectorField GG_on_verts(const DrawableTetmesh<> & m, ScalarField &f);
+void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::Matrix3d> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs);
+void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs);
+void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::Matrix3d> > &M, std::vector<Eigen::MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation);
+void solve_for_LR(DrawableTetmesh<> &m,DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation);
 template<class M, class V, class E, class F, class P>
 CINO_INLINE
 Eigen::SparseMatrix<double> GG_gradient_matrix(const AbstractPolyhedralMesh<M,V,E,F,P> & m, const bool per_poly = true);

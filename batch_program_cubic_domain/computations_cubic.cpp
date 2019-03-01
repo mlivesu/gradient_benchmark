@@ -171,7 +171,7 @@ std::vector<double> error_for_hist(const DrawableVectorField &GT, const Drawable
         for(int i=0;i<N;++i)
         {
             if(!m.vert_is_on_srf(i) && !m.vert_data(i).marked)
-               err.push_back(relative_error(GT.vec_at(i),V.vec_at(i),mode));
+                err.push_back(relative_error(GT.vec_at(i),V.vec_at(i),mode));
         }
 
     } break;
@@ -179,7 +179,7 @@ std::vector<double> error_for_hist(const DrawableVectorField &GT, const Drawable
     { for(int i=0;i<N;++i)
         {
             if(m.vert_is_on_srf(i))
-               err.push_back(relative_error(GT.vec_at(i),V.vec_at(i),mode));
+                err.push_back(relative_error(GT.vec_at(i),V.vec_at(i),mode));
 
         }
 
@@ -494,27 +494,27 @@ DrawableVectorField compute_field(const DrawableTetmesh<> & m, ScalarField & f, 
     {
     case 0:
 
-        V=DrawableVectorField(m,true);
+
         V=compute_PCE(m,f);
         V.set_arrow_color(c);
 
 
         break;
     case 1:
-        V=DrawableVectorField(m,false);
-        V=compute_AGS(m,f,weight);
+
+        V=GG_on_verts(m,f);
         V.set_arrow_color(c);
 
         break;
     case 2:
-        V=DrawableVectorField(m,false);
+
         V=compute_FEM(m,f);
         V.set_arrow_color(c);
 
 
         break;
     case 3:
-        V=DrawableVectorField(m,false);
+
         V=compute_quadratic_regression(m,f);
         V.set_arrow_color(c);
 
@@ -682,6 +682,7 @@ DrawableVectorField compute_quadratic_regression(const DrawableTetmesh<> &m, con
     std::vector<vec3d> coords=m.vector_verts();
     Eigen::VectorXd X(10);
     double sigma=pow(m.edge_avg_length(),2);
+    double factor=1/sigma*sqrt(2*M_PI);
     DrawableVectorField V=DrawableVectorField(m,false);
 
     double count=0;
@@ -698,36 +699,35 @@ DrawableVectorField compute_quadratic_regression(const DrawableTetmesh<> &m, con
 
         }
         nbr.push_back(i);
-
         if(nbr.size()<9)
-        {
+               {
 
-            for(int s=0;s<nbr.size()-1;++s)
-            {
-                if(nbr.size()>=9)
-                {
-                    break;
-                }
-                else
-                {
-                    for(uint vid : m.adj_v2v(nbr[s]))
-                    {
+                   for(int s=0;s<nbr.size()-1;++s)
+                   {
+                       if(nbr.size()>=9)
+                       {
+                           break;
+                       }
+                       else
+                       {
+                           for(uint vid : m.adj_v2v(nbr[s]))
+                           {
 
-                        if(vector_contains_value(nbr,vid))
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            nbr.push_back(vid);
-                        }
+                               if(vector_contains_value(nbr,vid))
+                               {
+                                   continue;
+                               }
+                               else
+                               {
+                                   nbr.push_back(vid);
+                               }
 
-                    }
+                           }
 
-                }
+                       }
 
-            }
-        }
+                   }
+               }
         /*if(nbr.size()<9)
         {
             std::vector<uint> picked_ones;
@@ -774,7 +774,7 @@ DrawableVectorField compute_quadratic_regression(const DrawableTetmesh<> &m, con
                 pos=coords[nbr[j]];
                 double d=(pos-vert).length_squared();
                 d/=sigma;
-                wgt=exp(-d);
+                wgt=sqrt(exp(-d)*factor);
 
                 b(j)=f[nbr[j]]*wgt;
             }else
@@ -1041,29 +1041,22 @@ DrawableVectorField compute_FEM(const DrawableTetmesh<> &m, const ScalarField & 
         for(int j=0;j<M;++j)
         {
             vec3d vij=coords[nbr[j]].operator -(coords[i]);
-            double wgt=1/vij.length_squared();
+            double wgt=1/vij.length();
             B(j,0)=vij[0]*wgt;
             B(j,1)=vij[1]*wgt;
             B(j,2)=vij[2]*wgt;
             sigma(j)=(f[nbr[j]]-f[i])*wgt;
-
-            if(j==M-1)
-            {
-                Eigen::Matrix3d A(3,3);
-                Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
-                A=Bt*B;
-                Eigen::ColPivHouseholderQR<Matrix3d> dec(A);
-                b=Bt*sigma;
-
-                X=dec.solve(b);
-                // X.resize(3);
-
-                grad=vec3d(X(0),X(1),X(2));
-                V.set(i,grad);
-
-
-            }
         }
+        Eigen::Matrix3d A(3,3);
+        Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
+        A=Bt*B;
+        Eigen::ColPivHouseholderQR<Matrix3d> dec(A);
+        b=Bt*sigma;
+
+        X=dec.solve(b);
+
+        grad=vec3d(X(0),X(1),X(2));
+        V.set(i,grad);
 
     }
 
@@ -1380,3 +1373,266 @@ DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f, int
 
     return V;
 }
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
+{
+    Eigen::SparseMatrix<double> G(m.num_verts()*3, m.num_verts());
+    std::vector<Entry> entries;
+    DrawableVectorField V=DrawableVectorField(m,false);
+    for(uint vid=0; vid<m.num_verts(); ++vid)
+    {
+        double vol=0;
+        std::vector<std::pair<uint,vec3d>> face_contr;
+        double area=0.f;
+        for(uint pid : m.adj_v2p(vid))
+        {
+            vol+=m.poly_volume(pid);
+            uint f=m.poly_face_opposite_to(pid,vid);
+            vec3d n=m.poly_face_normal(pid,f);
+            double a=m.face_area(f);
+            vec3d contribute=(n*a)/3;
+
+            face_contr.push_back(std::make_pair(f, contribute));
+
+        }
+        uint row = vid * 3;
+        for(uint s=0;s<face_contr.size();++s)
+        {
+            std::vector<uint> vids=m.face_verts_id(face_contr[s].first);
+            for(uint j=0;j<3;++j)
+            {
+                entries.push_back(Entry(row  , vids[j],face_contr[s].second.x()/vol));
+                entries.push_back(Entry(row+1, vids[j], face_contr[s].second.y()/vol));
+                entries.push_back(Entry(row+2, vids[j], face_contr[s].second.z()/vol));
+
+            }
+        }
+        // note: Eigen::setFromTriplets will take care of summing contributs w.r.t. multiple polys
+
+
+    }
+
+
+    G.setFromTriplets(entries.begin(), entries.end());
+    V=G*f;
+    return V;
+}
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Matrix3d> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs)
+{
+    int Nv=m.num_verts();
+    int M=0;
+    double delta=0;
+    std::vector<uint> nbr;
+
+    vec3d grad;
+    std::vector<vec3d> coords=m.vector_verts();
+    DrawableVectorField V=DrawableVectorField(m,false);
+    Eigen::Vector3d X;
+    Eigen::Vector3d b;
+
+
+    for (int i=0;i<Nv;++i)
+    {
+        nbr.resize(0);
+        for(uint vid : m.adj_v2v(i))
+        {
+            nbr.push_back(vid);
+
+        }
+
+
+
+        M=nbr.size();
+        nbrs.push_back(nbr);
+        Eigen::MatrixXd B(M,3);
+        Eigen::VectorXd sigma(M);
+        Eigen::DiagonalMatrix<double,Eigen::Dynamic> W(M);
+        for(int j=0;j<M;++j)
+        {
+            vec3d vij=coords[nbr[j]].operator -(coords[i]);
+            double wgt=1/vij.length_squared();
+            W.diagonal()[j]=wgt;
+            B(j,0)=vij[0];
+            B(j,1)=vij[1];
+            B(j,2)=vij[2];
+
+        }
+        Eigen::Matrix3d A(3,3);
+        Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
+        A=Bt*W*B;
+        Eigen::MatrixXd Rhs=Bt*W;
+        Eigen::ColPivHouseholderQR<Matrix3d> dec(A);
+        MFact.push_back(dec);
+        RHS.push_back(Rhs);
+    }
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs)
+{
+    int nv=m.num_verts();
+    std::vector<int> rank (nv);
+    std::vector<uint> nbr;
+    std::vector<double> values;
+    std::vector<std::pair<double,vec3d>> nbr_aux;
+    std::vector<vec3d> coords=m.vector_verts();
+    Eigen::VectorXd X(10);
+    double sigma=pow(m.edge_avg_length(),2);
+    double factor=1/sigma*sqrt(2*M_PI);
+    DrawableVectorField V=DrawableVectorField(m,false);
+
+    double count=0;
+
+    for (int i=0;i<nv;++i)
+    {
+        nbr.resize(0);
+        nbr_aux.resize(0);
+        values.resize(0);
+        vec3d vert=m.vert(i);
+        for(uint vid : m.adj_v2v(i))
+        {
+            nbr.push_back(vid);
+
+        }
+        nbr.push_back(i);
+        if(nbr.size()<9)
+               {
+
+                   for(int s=0;s<nbr.size()-1;++s)
+                   {
+                       if(nbr.size()>=9)
+                       {
+                           break;
+                       }
+                       else
+                       {
+                           for(uint vid : m.adj_v2v(nbr[s]))
+                           {
+
+                               if(vector_contains_value(nbr,vid))
+                               {
+                                   continue;
+                               }
+                               else
+                               {
+                                   nbr.push_back(vid);
+                               }
+
+                           }
+
+                       }
+
+                   }
+               }
+
+
+        int size=nbr.size();
+        nbrs.push_back(nbr);
+        Eigen::MatrixXd coeff(size,10);
+        Eigen::VectorXd b(size);
+        Eigen::DiagonalMatrix<double,Eigen::Dynamic> W(size);
+
+        for (int j=0;j<size;++j)
+        {
+            vec3d pos;
+            double wgt;
+            pos=coords[nbr[j]];
+            double d=(pos-vert).length_squared();
+            d/=sigma;
+            wgt=sqrt(exp(-d)*factor);
+            W.diagonal()[j]=wgt;
+
+
+
+            coeff(j,0)=pow(pos[0],2);
+            coeff(j,1)=pow(pos[1],2);
+            coeff(j,2)=pow(pos[2],2);
+            coeff(j,3)=pos[0]*pos[1];
+            coeff(j,4)=pos[0]*pos[2];
+            coeff(j,5)=pos[2]*pos[1];
+            coeff(j,6)=pos[0];
+            coeff(j,7)=pos[1];
+            coeff(j,8)=pos[2];
+            coeff(j,9)=1;
+        }
+
+
+        Eigen::MatrixXd coeffT=Transpose<Eigen::MatrixXd>(coeff);
+        Eigen::MatrixXd A=coeffT*W*coeff;
+        Eigen::MatrixXd Rhs=coeffT*W;
+        Eigen::ColPivHouseholderQR<MatrixXd> dec(A);
+        M.push_back(dec);
+        RHS.push_back(Rhs);
+      }
+}
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Matrix3d> > &M, std::vector<MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation)
+{
+    V=DrawableVectorField(m,false);
+    Eigen::VectorXd X(3);
+    Eigen::VectorXd b(3);
+    vec3d grad;
+
+
+
+    for(int i=0;i<m.num_verts();++i)
+   {
+       Eigen::MatrixXd Rhs=RHS[i];
+
+       std::vector<uint> nbr=nbrs[i];
+       int p=nbr.size();
+
+       Eigen::VectorXd tmp(p);
+
+       for(int j=0;j<p;++j)
+       {
+           tmp(j)=f[nbr[j]]-f[i];
+       }
+       b=Rhs*tmp;
+
+
+       X=M[i].solve(b);
+
+       grad=vec3d(X(0),X(1),X(2));
+
+       V.set(i,grad);
+
+
+   }
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void solve_for_LR(DrawableTetmesh<> &m,DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<MatrixXd> RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation)
+{
+   V=DrawableVectorField(m,false);
+    Eigen::VectorXd X(10);
+     Eigen::VectorXd b(10);
+    vec3d grad;
+   vec3d vert;
+
+
+
+    for(int i=0;i<RHS.size();++i)
+    {
+      vert=m.vert(i);
+      Eigen::MatrixXd AtW=RHS[i];
+      int p=nbrs[i].size();
+      Eigen::VectorXd tmp(p);
+      for(int j=0;j<nbrs[i].size();++j)
+      {
+          tmp(j)=f[nbrs[i][j]];
+      }
+
+
+      b=AtW*tmp;
+      X=M[i].solve(b);
+      grad= vec3d (2*X(0)*m.vert(i).x()+X(3)*m.vert(i).y()+X(4)*m.vert(i).z()+X(6),2*X(1)*m.vert(i).y()+X(3)*m.vert(i).x()+X(5)*m.vert(i).z()+X(7),2*X(2)*m.vert(i).z()+X(4)*m.vert(i).x()+X(5)*m.vert(i).y()+X(8));
+      V.set(i,grad);
+
+    }
+
+
+
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
