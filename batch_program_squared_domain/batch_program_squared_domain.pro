@@ -1,4 +1,4 @@
-LIBS_PATH       = $$PWD/../../lib
+LIBS_PATH       = $$PWD/../../gradient_fields/lib
 DATA_PATH       = $$PWD/../../data
 
 TEMPLATE        = app

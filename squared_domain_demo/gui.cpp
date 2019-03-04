@@ -109,8 +109,6 @@ void init_gui(GUI & gui)
     error_layout->addWidget(&gui.InsideError,2,1);
     error_layout->addWidget(new QLabel("Type of Vertices:"),3,0);
     error_layout->addWidget(&gui.type_of_vertices,3,1);
-    error_layout->addWidget(new QLabel("Handle Boundaries:"),4,0);
-    error_layout->addWidget(&gui.boundaries,4,1);
     gui.error.setTitle("Error");
     gui.error.setLayout(error_layout);
     gui.error.setDisabled(true);
@@ -164,8 +162,8 @@ void init_gui(GUI & gui)
     //
 
     for(int i=0; i<N_FUNCTIONS; ++i) gui.cb_function.addItem(f_names[i].c_str());
-    for(int i=0; i<=LR_CENTROIDS; ++i) gui.method.addItem(method_names[i].c_str());
-    for(int i=0; i<=grid; ++i) gui.choose_tri.addItem(tri_names[i].c_str());
+    for(int i=0; i<=LR; ++i) gui.method.addItem(method_names[i].c_str());
+    for(int i=0; i<=anisotropic; ++i) gui.choose_tri.addItem(tri_names[i].c_str());
     for(int i=0; i<=relative; ++i) gui.ErrType.addItem(err_names[i].c_str());
     for(int i=0; i<=angle; ++i) gui.mode.addItem(mode_names[i].c_str());
     for(int i=0; i<=only_boundary; ++i) gui.type_of_vertices.addItem(vertices_names[i].c_str());
@@ -410,18 +408,14 @@ void init_events(GUI & gui)
     {
         if (gui.scalar_field.isChecked())
         {
-                        gui.canvas.pop(&computations.dual_m);
-                        gui.canvas.pop(&computations.m_grid);
-            //            //computations.dual_m.clear();
+            gui.canvas.pop(&computations.dual_m);
+            gui.canvas.pop(&computations.m_grid);
 
-
-                       computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-                     find_max_min_values(computations.f,computations.max,computations.min);
+            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+            find_max_min_values(computations.f,computations.max,computations.min);
             computations.f_norm=heat_map_normalization(computations.f,computations.min,computations.max);
             computations.f_norm.copy_to_mesh(computations.m);
             computations.m.show_texture1D(TEXTURE_1D_HSV);
-
-
         }
 
         if (gui.Err.isChecked())
@@ -482,119 +476,7 @@ void init_events(GUI & gui)
         gui.canvas.updateGL();
 
     });
-    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    QCheckBox::connect(&gui.boundaries, &QCheckBox::stateChanged, [&]()
-    {
-        if(gui.boundaries.isChecked())
-        {
-            if(gui.method.currentIndex()!=1)
-            {
-                computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-                computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-                computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex(),true);
-            }
 
-        else
-        {
-            std::map<uint, int> boundaries;
-            computations.f=scalar_field_with_boundaries(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),boundaries);
-            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex(),true);
-        }
-        }else
-        {
-            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex(),false);
-        }
-
-        if(gui.but.isChecked())
-        {
-            computations.V_norm=computations.V;
-            computations.V_norm.normalize();
-            gui.canvas.push_obj(&computations.V_norm,false);
-        }
-
-        if(gui.ground_truth.isChecked())
-        {
-            computations.GT_norm=computations.GT;
-            computations.GT_norm.normalize();
-            gui.canvas.push_obj(&computations.GT_norm,false);
-
-        }
-
-        if (gui.show_heat_map.isChecked())
-        {
-            if (gui.scalar_field.isChecked())
-            {
-                gui.canvas.pop(&computations.dual_m);
-                gui.canvas.pop(&computations.m_grid);
-                find_max_min_values(computations.f,computations.max,computations.min);
-                computations.f_norm=heat_map_normalization(computations.f,computations.min,computations.max);
-                computations.f_norm.copy_to_mesh(computations.m);
-                computations.m.show_texture1D(TEXTURE_1D_HSV);
-
-
-            }
-
-            if (gui.Err.isChecked())
-            {
-
-                gui.canvas.pop(&computations.dual_m);
-                gui.canvas.pop(&computations.m_grid);
-                computations.dual_m.clear();
-
-                if(gui.InsideError.isChecked())
-                {
-
-                    computations.GT_grid=compute_values_on_grid(computations.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-
-                    bring_the_field_inside(computations.m,computations.m_grid,computations.V,computations.V_grid,gui.method.currentIndex());
-                    computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-                    computations.err=estimate_error(computations.GT_grid,computations.V_grid,computations.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
-                    computations.max=find_max_norm(computations.GT);
-                    computations.err_norm=heat_map_normalization(computations.err,0,computations.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
-                    computations.err_norm.copy_to_mesh(computations.m_grid);
-
-                    gui.canvas.pop(&computations.m);
-                    gui.canvas.push_obj(&computations.m_grid,false);
-                    computations.m_grid.show_wireframe(false);
-                    computations.m_grid.show_texture1D(TEXTURE_1D_HSV);
-                    gui.canvas.push_obj(&computations.m,false);
-
-
-                }else
-                {
-
-                    computations.err=estimate_error(computations.GT,computations.V,computations.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
-                    computations.max=find_max_norm(computations.GT);
-                    computations.err_norm=heat_map_normalization(computations.err,0,computations.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
-
-                    if(gui.method.currentIndex()==0)
-                    {
-                        computations.err_norm.copy_to_mesh(computations.dual_m);
-                        gui.canvas.pop(&computations.m);
-                        gui.canvas.push_obj(&computations.dual_m,false);
-                        computations.dual_m.show_wireframe(false);
-                        computations.dual_m.show_texture1D(TEXTURE_1D_HSV);
-                        gui.canvas.push_obj(&computations.m,false);
-
-
-                    }else
-                    {
-                        computations.err_norm.copy_to_mesh(computations.m);
-                        computations.m.show_texture1D(TEXTURE_1D_HSV);
-
-                    }
-
-                }
-
-
-
-            }
-        }
-
-    });
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     QSlider::connect(&gui.sl_error_neg, &QSlider::valueChanged, [&]()
     {
@@ -654,6 +536,25 @@ void init_events(GUI & gui)
 
                 }
             }
+        }
+
+        if(gui.but.isChecked())
+        {
+            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex());
+            computations.V_norm=computations.V;
+            computations.V_norm.normalize();
+            gui.canvas.push_obj(&computations.V_norm,false);
+
+
+        }
+        if(gui.ground_truth.isChecked())
+        {
+            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+            computations.GT_norm=computations.GT;
+            computations.GT_norm.normalize();
+            gui.canvas.push_obj(&computations.GT_norm,false);
+
         }
 
 
@@ -721,6 +622,25 @@ void init_events(GUI & gui)
             }
         }
 
+        if(gui.but.isChecked())
+        {
+            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex());
+            computations.V_norm=computations.V;
+            computations.V_norm.normalize();
+            gui.canvas.push_obj(&computations.V_norm,false);
+
+
+        }
+        if(gui.ground_truth.isChecked())
+        {
+            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+            computations.GT_norm=computations.GT;
+            computations.GT_norm.normalize();
+            gui.canvas.push_obj(&computations.GT_norm,false);
+
+        }
+
 
         gui.canvas.updateGL();
 
@@ -770,27 +690,6 @@ void init_events(GUI & gui)
 
     QComboBox::connect(&gui.cb_function, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated), [&]()
     {
-
-
-        if(gui.but.isChecked())
-        {
-            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex());
-            computations.V_norm=computations.V;
-            computations.V_norm.normalize();
-            gui.canvas.push_obj(&computations.V_norm,false);
-
-
-        }
-        if(gui.ground_truth.isChecked())
-        {
-            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-            computations.GT_norm=computations.GT;
-            computations.GT_norm.normalize();
-            gui.canvas.push_obj(&computations.GT_norm,false);
-
-        }
-
         if (gui.show_heat_map.isChecked())
         {
             if (gui.scalar_field.isChecked())
@@ -869,13 +768,7 @@ void init_events(GUI & gui)
 
             }
         }
-        gui.canvas.updateGL();
 
-    });
-    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    // defines reaction to a combo box item selection
-    QComboBox::connect(&gui.method, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated), [&]()
-    {
         if(gui.but.isChecked())
         {
             computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
@@ -886,7 +779,6 @@ void init_events(GUI & gui)
 
 
         }
-
         if(gui.ground_truth.isChecked())
         {
             computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
@@ -895,6 +787,13 @@ void init_events(GUI & gui)
             gui.canvas.push_obj(&computations.GT_norm,false);
 
         }
+        gui.canvas.updateGL();
+
+    });
+    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    // defines reaction to a combo box item selection
+    QComboBox::connect(&gui.method, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated), [&]()
+    {
 
         if (gui.show_heat_map.isChecked())
         {
@@ -974,6 +873,26 @@ void init_events(GUI & gui)
 
             }
         }
+        if(gui.but.isChecked())
+        {
+            computations.f=get_scalar_field(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+            computations.V=compute_field(computations.m,computations.f,gui.method.currentIndex());
+            computations.V_norm=computations.V;
+            computations.V_norm.normalize();
+            gui.canvas.push_obj(&computations.V_norm,false);
+
+
+        }
+
+        if(gui.ground_truth.isChecked())
+        {
+            computations.GT=compute_ground_truth(computations.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+            computations.GT_norm=computations.GT;
+            computations.GT_norm.normalize();
+            gui.canvas.push_obj(&computations.GT_norm,false);
+
+        }
+
 
 
         gui.canvas.updateGL();

@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
                 if(method==2)
                 {
                     DrawableVectorField V;
-                    std::vector<Eigen::ColPivHouseholderQR<Eigen::Matrix3d> > M;
+                    std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > M;
                     std::vector<Eigen::MatrixXd> RHS;
                     std::vector<std::vector<uint>> nbrs;
 
@@ -351,7 +351,7 @@ int main(int argc, char *argv[])
 
 
                     std::chrono::high_resolution_clock::time_point t0sol = std::chrono::high_resolution_clock::now();
-                    solve_for_LSDD(m,V,M,RHS,f,nbrs,time_precom,time_estimation);
+                    solve_for_LSDD(m,V,M,RHS,f,nbrs);
                     std::chrono::high_resolution_clock::time_point t1sol = std::chrono::high_resolution_clock::now();
                     time_estimation = std::chrono::duration_cast<std::chrono::duration<double>>(t1sol - t0sol);
 
@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
                     time_precom = std::chrono::duration_cast<std::chrono::duration<double>>(t1mult - t0mult);
 
                     std::chrono::high_resolution_clock::time_point t0sol = std::chrono::high_resolution_clock::now();
-                    solve_for_LR(m,V,M,RHS,f,nbrs,time_precom,time_estimation);
+                    solve_for_LR(m,V,M,RHS,f,nbrs);
 
                     std::chrono::high_resolution_clock::time_point t1sol = std::chrono::high_resolution_clock::now();
                     time_estimation = std::chrono::duration_cast<std::chrono::duration<double>>(t1sol - t0sol);

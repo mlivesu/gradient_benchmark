@@ -418,27 +418,25 @@ DrawableVectorField compute_field(DrawableTetmesh<> & m, ScalarField & f, const 
     {
     case 0:
 
-//        G=gradient_matrix(m);
-//        V=DrawableVectorField(m,true);
-//        V=G*f;
-//        V.set_arrow_color(c);
-
-
-         V=compute_PCE(m,f);
-         V.set_arrow_color(c);
-        break;
-    case 1:
-
-        V=compute_AGS(m,f);
-
+        G=gradient_matrix(m);
+        V=DrawableVectorField(m,true);
+        V=G*f;
         V.set_arrow_color(c);
 
 
 
+        break;
+    case 1:
+
+        G=build_matrix_for_AGS(m);
+        V=DrawableVectorField(m,false);
+        V=G*f;
+        V.set_arrow_color(c);
 
         break;
 
     case 2:
+
         build_matrix_for_LSDD(m,M,RHS,nbrs);
         solve_for_LSDD(m,V,M,RHS,f,nbrs);
 
@@ -1430,7 +1428,7 @@ DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f)
     return V;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
+Eigen::SparseMatrix<double> build_matrix_for_AGS(const DrawableTetmesh<> &m)
 {
     Eigen::SparseMatrix<double> G(m.num_verts()*3, m.num_verts());
     std::vector<Entry> entries;
@@ -1449,6 +1447,25 @@ DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
             vec3d contribute=(n*a)/3;
 
             face_contr.push_back(std::make_pair(f, contribute));
+
+            if(m.vert_is_on_srf(vid))
+            {
+               std::vector<uint> faces=m.poly_f2f(pid,f);
+               for(uint k=0;k<faces.size();++k)
+               {
+                   if(m.face_is_on_srf(faces[k]))
+                   {
+                       n=m.poly_face_normal(pid,faces[k]);
+                       a=m.face_area(faces[k]);
+                       contribute=(n*a)/3;
+                       face_contr.push_back(std::make_pair(faces[k], contribute));
+
+                   }
+               }
+
+            }
+
+
 
         }
         uint row = vid * 3;
@@ -1470,8 +1487,8 @@ DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
 
 
     G.setFromTriplets(entries.begin(), entries.end());
-    V=G*f;
-    return V;
+
+    return G;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<MatrixXd> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs)

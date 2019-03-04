@@ -16,13 +16,27 @@ using namespace cinolib;
 using namespace Eigen;
 typedef Eigen::Triplet<double> Entry;
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-bool poly_has_vert_on_srf (const DrawableTrimesh<> &m, uint pid)
+bool poly_has_vert_on_boundary (const DrawableTrimesh<> &m, uint pid)
 {
     for(uint vid : m.adj_p2v(pid))
     {
         if(m.vert_is_boundary(vid)) return true;
     }
     return false;
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+bool vector_contains_value(std::vector<uint> &v, const uint value)
+{
+    bool contains=false;
+    for(int i=0;i<v.size();++i)
+    {
+        if(v[i]==value)
+        {
+            contains=true;
+        }
+    }
+    return contains;
+
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 void num_verts_on_boundary(const DrawableTrimesh<> & m, std::map<uint,int> &boundaries)
@@ -62,7 +76,7 @@ double relative_error(const vec3d v1, const vec3d v2,const int mode)
         norm1=diff.length();
         norm2=(v1.length()+v2.length())/2;
         err=(norm2>treshold)? norm1/norm2 : treshold;
-
+        err/=2;
         break;
     }
     case 1:
@@ -73,7 +87,7 @@ double relative_error(const vec3d v1, const vec3d v2,const int mode)
         diff_norm=abs(norm1-norm2);
         double tmp=(norm1 +norm2)/2;
         err=(tmp>treshold)? diff_norm/tmp  : treshold;
-
+        err/=2;
 
         break;
     }
@@ -143,13 +157,13 @@ double scale_function(double x, double md, double Md)
 
 
     double amplitude=Md-md;
-//    double delta=amplitude/25;
-//    double Mdtmp=md+scale_factor*delta;
+    //    double delta=amplitude/25;
+    //    double Mdtmp=md+scale_factor*delta;
 
     x=(x-md)/(Md-md);
 
-//    if (x>=1){x=0.999;}
-//    if (x<=0){x=1e-10;}
+    //    if (x>=1){x=0.999;}
+    //    if (x<=0){x=1e-10;}
     return x;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -178,353 +192,6 @@ void find_max_min_values (const ScalarField f, double &max, double &min)
     }
 
 }
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-void pid_contribute(const std::vector<imaginary_vertex> &nbr, std::map<uint, int> boundaries, std::vector<std::pair<uint, vec3d> > &pesi, int &offset, vec3d &n)
-{
-    int entry;
-    for(uint off=0; off<3; ++off)
-    {
-
-        uint  curr = nbr[(off+1)%3].real;
-
-
-        vec3d u    = nbr[(off+2)%3].p - nbr[(off+1)%3].p;
-        vec3d v    = nbr[(off+1)%3].p - nbr[off].p;
-        vec3d u_90 = u.cross(n); u_90.normalize();
-        vec3d v_90 = v.cross(n); v_90.normalize();
-
-        if(curr>offset)
-        {
-            curr-=offset;
-
-            entry=boundaries[curr];
-            pesi.push_back(std::make_pair(offset+entry,u_90 + v_90));
-        }else
-        {
-            pesi.push_back(std::make_pair(curr,u_90 + v_90));
-        }
-
-
-    }
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-vec3d generic_contribute(const vec3d vi,const vec3d vj,const vec3d vh, const vec3d vk, const vec3d Njh, const vec3d Njk,int mode)
-
-{
-    vec3d vij=vi.operator -(vj);
-    vec3d vji=vij.operator -();
-
-    vec3d vjh=vj.operator -(vh);
-    vec3d vhj=vjh.operator -();
-
-    vec3d vkj=vk.operator -(vj);
-    vec3d vjk=vkj.operator -();
-
-    vec3d contribute;
-
-    vec3d vij_90=vij.cross(Njh);
-    vec3d vjh_90=vjh.cross(Njh);
-    vec3d vji_90=vji.cross(Njk);
-    vec3d vkj_90=vkj.cross(Njk);
-
-    switch(mode)
-    {
-    case 0:
-    {
-
-        contribute = vkj_90 + vji_90 + vij_90 + vjh_90;
-
-    }
-        break;
-    case 1:
-    {
-
-        contribute = vkj_90 + vji_90;
-
-
-    }
-        break;
-    case 2 :
-    {
-
-        contribute = vij_90 + vjh_90;
-
-    }
-        break;
-    }
-
-    return contribute;
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-vec3d vi_contribute(const vec3d vi,const vec3d vj,const vec3d vh, const vec3d vk, const vec3d Njh, const vec3d Njk,int mode)
-{
-    vec3d vij=vi.operator -(vj);
-    vec3d vih=vi.operator -(vh);
-    vec3d vhi=vh.operator -(vi);
-    vec3d vji=vj.operator -(vi);
-    vec3d vik=vi.operator -(vk);
-    vec3d vki=vik.operator -();
-
-
-    vec3d vij_90=vij.cross(Njh);
-    vec3d vhi_90=vhi.cross(Njh);
-    vec3d vji_90=vji.cross(Njk);
-    vec3d vik_90=vik.cross(Njk);
-    vec3d vki_90=vki.cross(Njk);
-    vec3d contribute;
-
-    switch(mode)
-    {
-
-    case 0:
-    {
-
-    }
-        break;
-    case 1:
-    { contribute= vji_90 + vik_90;
-    }
-        break;
-    case 2:
-    {
-
-        contribute= vhi_90 + vij_90;
-
-
-    }
-        break;
-
-    }
-
-    return contribute;
-
-
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-std::vector<imaginary_vertex> nbr_for_boundaries(const DrawableTrimesh<> &m, uint vid)
-{
-    std::vector<imaginary_vertex> nbr;
-    int N=m.num_verts();
-    std::vector<uint> tmp=m.vert_ordered_vert_ring(vid);
-    double l=m.edge_avg_length();
-    vec3d prev=m.vert(tmp[0]);
-    vec3d next=m.vert(tmp[tmp.size()-1]);
-    vec3d dir_prev;
-    vec3d dir_curr;
-    vec3d dir_next;
-    if(prev[0]==next[0]||prev[1]==next[1])
-    {
-        dir_prev=-(m.vert(vid)-prev).cross(m.vert_data(tmp[0]).normal);
-        dir_curr=(prev-m.vert(vid)).cross(m.vert_data(vid).normal);
-        dir_next=(m.vert(vid)-next).cross(m.vert_data(tmp[tmp.size()-1]).normal);
-        dir_prev.normalize();
-        dir_prev*=l;
-        dir_prev+=prev;
-        dir_curr.normalize();
-        dir_curr*=l;
-        dir_prev+=m.vert(vid);
-        dir_next.normalize();
-        dir_next*=l;
-        dir_next+=next;
-    }else
-    {
-        dir_prev=(m.vert(vid)-prev).cross(-m.vert_data(tmp[0]).normal);
-        dir_next=(m.vert(vid)-next).cross(m.vert_data(tmp[tmp.size()-1]).normal);
-        dir_curr=dir_prev+dir_next;
-        dir_curr/=2;
-        dir_prev.normalize();
-        dir_prev*=l;
-        dir_prev+=prev;
-        dir_curr.normalize();
-        dir_curr*=l;
-        dir_prev+=m.vert(vid);
-        dir_next.normalize();
-        dir_next*=l;
-        dir_next+=next;
-    }
-
-    imaginary_vertex v0;
-    imaginary_vertex v1;
-    imaginary_vertex v2;
-
-    v0.p=dir_prev;
-    v0.real=N+tmp[0];
-    nbr.push_back(v0);
-    v1.p=dir_curr;
-    v1.real=N+vid;
-    nbr.push_back(v1);
-    v2.p=dir_next;
-    v2.real=N+tmp[tmp.size()-1];
-    nbr.push_back(v2);
-
-
-    return nbr;
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-Eigen::SparseMatrix<double> GG_gradient_matrix(const DrawableTrimesh<> & m,int mode)
-{
-    if (mode==0)
-    {
-        Eigen::SparseMatrix<double> G(m.num_polys()*3, m.num_verts());
-        std::vector<Entry> entries;
-
-        for(uint pid=0; pid<m.num_polys(); ++pid)
-        {
-            double area = std::max(m.poly_area(pid), 1e-5) * 2.0; // (2 is the average term : two verts for each edge)
-            vec3d n     = m.poly_data(pid).normal;
-
-            for(uint off=0; off<m.verts_per_poly(pid); ++off)
-            {
-                uint  prev = m.poly_vert_id(pid,off);
-                uint  curr = m.poly_vert_id(pid,(off+1)%m.verts_per_poly(pid));
-                uint  next = m.poly_vert_id(pid,(off+2)%m.verts_per_poly(pid));
-                vec3d u    = m.vert(next) - m.vert(curr);
-                vec3d v    = m.vert(curr) - m.vert(prev);
-                vec3d u_90 = u.cross(n); u_90.normalize();
-                vec3d v_90 = v.cross(n); v_90.normalize();
-
-                vec3d per_vert_sum_over_edge_normals = u_90 * u.length() + v_90 * v.length();
-                per_vert_sum_over_edge_normals /= area;
-
-                uint row = 3 * pid;
-                entries.push_back(Entry(row, curr, per_vert_sum_over_edge_normals.x())); ++row;
-                entries.push_back(Entry(row, curr, per_vert_sum_over_edge_normals.y())); ++row;
-                entries.push_back(Entry(row, curr, per_vert_sum_over_edge_normals.z()));
-            }
-        }
-
-        G.setFromTriplets(entries.begin(), entries.end());
-        return G;
-
-    }
-    else if(mode==1)
-    {
-        std::map<uint,int> boundaries;
-        num_verts_on_boundary(m,boundaries);
-        int B=boundaries.size();
-        int N=m.num_verts();
-        int size=N+B;
-
-        Eigen::SparseMatrix<double> G(m.num_verts()*3, size);
-        std::vector<Entry> entries;
-        std::vector<std::pair<uint,vec3d>> pesi;
-
-        for (uint i=0;i<N;++i)
-        {
-            double area=0.0;
-            pesi.clear();
-
-            for(uint pid : m.adj_v2p(i))
-            {
-                area+=2*m.poly_area(pid);
-                vec3d n     = m.poly_data(pid).normal;
-
-                for(uint off=0; off<m.verts_per_poly(pid); ++off)
-                {
-                    uint  prev = m.poly_vert_id(pid,off);
-                    uint  curr = m.poly_vert_id(pid,(off+1)%m.verts_per_poly(pid));
-                    uint  next = m.poly_vert_id(pid,(off+2)%m.verts_per_poly(pid));
-                    vec3d u    = m.vert(next) - m.vert(curr);
-                    vec3d v    = m.vert(curr) - m.vert(prev);
-                    vec3d u_90 = u.cross(n);
-                    vec3d v_90 = v.cross(n);
-
-                    pesi.push_back(std::make_pair(curr,u_90 + v_90));
-
-                }
-            }
-
-            if(m.vert_is_boundary(i))
-            {
-                std::vector<imaginary_vertex>nbr_aux=nbr_for_boundaries(m,i);
-                std::vector<uint> nbr=m.vert_ordered_vert_ring(i);
-                imaginary_vertex v_0;
-                imaginary_vertex v_n;
-                imaginary_vertex v_i;
-                v_i.p=m.vert(i);
-                v_i.real=i;
-                v_0.p=m.vert(nbr[0]);
-                v_0.real=nbr[0];
-                v_n.p=m.vert(nbr[nbr.size()-1]);
-                v_n.real=nbr[nbr.size()-1];
-
-                for(uint j=0;j<4;++j)
-                {
-                    imaginary_vertex v0=(j==0)?v_0:nbr_aux[j-1];
-                    imaginary_vertex v2=(j==3)?v_n:nbr_aux[j+1];
-
-                    vec3d tmp0 =v0.p - v_i.p;
-                    vec3d tmp1=v2.p-v_i.p;
-                    vec3d n=tmp0.cross(tmp1);
-                    area+=n.length();
-                    std::vector<imaginary_vertex>triangle;
-                    triangle.push_back(v0);
-                    triangle.push_back(v2);
-                    triangle.push_back(v_i);
-                    n.normalize();
-
-                    pid_contribute(triangle,boundaries,pesi,N,n);
-
-                }
-            }
-
-            int  row=i*3;
-
-            for(int id=0;id<pesi.size();++id)
-            {
-
-                entries.push_back(Entry(row,pesi[id].first,pesi[id].second[0]/area));
-                entries.push_back(Entry(row+1,pesi[id].first,pesi[id].second[1]/area));
-                entries.push_back(Entry(row+2,pesi[id].first,pesi[id].second[2]/area));
-            }
-        }
-
-
-        G.setFromTriplets(entries.begin(), entries.end());
-
-        return G;
-    }
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField from_f2v(DrawableVectorField & W, const DrawableTrimesh<> & m)
-
-{
-
-    int Nv=m.num_verts();
-    std::vector<vec3d> grad_v(Nv);
-    vec3d provv=vec3d(0,0,0);
-    vec3d avg=vec3d(0,0,0);
-
-    std::vector<uint> nbr;
-    DrawableVectorField Wv;
-    Wv=DrawableVectorField(m,false);
-
-
-    for (int i=0;i<Nv;++i)
-    {
-        nbr=m.adj_v2p(i);
-        provv=vec3d(0,0,0);
-        avg=vec3d(0,0,0);
-        vec3d pos=m.vert(i);
-        double wgt=0;
-        for(int j=0;j<nbr.size();++j)
-        {
-            uint pid=nbr[j];
-            double weight=1/(m.poly_centroid(pid)-pos).length();
-            provv=W.vec_at(pid)*weight;
-            wgt+=weight;
-            avg+=provv;
-
-        }
-        avg/=wgt;
-        Wv.set(i,avg);
-    }
-    return Wv;
-}
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 DrawableVectorField  compute_ground_truth (const DrawableTrimesh<> &m, const double a, const double b, const double c, const int mode, const int method)
@@ -534,6 +201,7 @@ DrawableVectorField  compute_ground_truth (const DrawableTrimesh<> &m, const dou
     std::vector<vec3d> coords;
     double A=a*10;
     double B=b/100;
+    double C=c/100;
     if(method==0)
     {
         V=DrawableVectorField(m,true);
@@ -557,23 +225,6 @@ DrawableVectorField  compute_ground_truth (const DrawableTrimesh<> &m, const dou
     {
 
     case 0:
-        for (int i=0;i<N;++i)
-        {
-            vec3d pos=coords[i];
-            vec3d grad=vec3d((A*sin(3*b*pos[0])+A*3*b*pos[0]*cos(3*b*pos[0]))*sin(3*b*pos[1]*pos[1]),
-                    6*b*A*pos[0]*pos[1]*sin(3*b*pos[0])*cos(3*b*pos[1]*pos[1]),0);
-            V.set(i,grad);
-        }
-        break;
-    case 1:
-        for (int i=0;i<N;++i)
-        {
-            vec3d pos=coords[i];
-            vec3d grad=vec3d(2*b*(pos[0]-0.5),2*c*(pos[1]-0.5),0);
-            V.set(i,grad);
-        }
-        break;
-    case 2:
         for(int i=0;i<N;++i)
         {
             vec3d pos=coords[i];
@@ -581,7 +232,16 @@ DrawableVectorField  compute_ground_truth (const DrawableTrimesh<> &m, const dou
             V.set(i,grad);
         }
         break;
-    case 3:
+    case 1:
+        for (int i=0;i<N;++i)
+        {
+            vec3d pos=coords[i];
+            vec3d grad=vec3d(2*B*(pos[0]-50),2*C*(pos[1]-50),0);
+            V.set(i,grad);
+        }
+        break;
+
+    case 2:
         for (int i=0;i<N;++i)
         {
 
@@ -603,6 +263,7 @@ ScalarField get_scalar_field(const DrawableTrimesh<> & m, const double a, const 
     int Nv= m.num_verts();
     double A=a*10;
     double B=b/100;
+    double C=c/100;
     std::vector<double> data(Nv);
     switch (mode)
     {
@@ -611,85 +272,21 @@ ScalarField get_scalar_field(const DrawableTrimesh<> & m, const double a, const 
         for(int i=0;i<Nv;++i)
         {
             vec3d w=v[i];
-            double val=A*w[0]*sin(3*b*w[0])*sin(3*b*w[1]*w[1]);
-            data[i]=val;
-        }
-        break;
-    case 1:
-        for(int i=0;i<Nv;++i)
-        {
-            vec3d w=v[i];
-            double val=b*pow(w[0]-0.5,2)+c*pow(w[1]-0.5,2);
-            data[i]=val;
-        }
-        break;
-    case 2:
-        for(int i=0;i<Nv;++i)
-        {
-            vec3d w=v[i];
             double val=A*sin(B*w[0])*cos(B*w[1]);
             data[i]=val;
         }
         break;
-    case 3:
 
-        for(int i=0;i<Nv;++i)
-        {
-            vec3d w=v[i];
-            double val=w[0]+w[1];
-            data[i]=val;
-        }
-
-        break;
-    }
-
-
-    return ScalarField(data);
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-ScalarField scalar_field_with_boundaries(const DrawableTrimesh<> &m, const double a, const double b, const double c, const int mode, std::map<uint, int> &boundaries)
-{
-    std::vector<vec3d> v=m.vector_verts();
-    int Nv= m.num_verts();
-    num_verts_on_boundary(m,boundaries);
-    int B=boundaries.size();
-    int s=Nv+B;
-    double A=a/10;
-    std::vector<double> data(s);
-    switch (mode)
-    {
-    case 0:
-
-        for(int i=0;i<Nv;++i)
-        {
-            vec3d w=v[i];
-            double val=A*w[0]*sin(3*b*w[0])*sin(3*b*w[1]*w[1]);
-            data[i]=val;
-        }
-        break;
     case 1:
         for(int i=0;i<Nv;++i)
         {
             vec3d w=v[i];
-            double val=b*pow(w[0]-0.5,2)+c*pow(w[1]-0.5,2);
+            double val=B*pow(w[0]-50,2)+C*pow(w[1]-50,2);
             data[i]=val;
         }
         break;
-    case 2:
-        for(int i=0;i<Nv;++i)
-        {
-            vec3d w=v[i];
-            double val=A*sin(b*w[0])*cos(b*w[1]);
-            data[i]=val;
-            if(m.vert_is_boundary(i))
-            {
-                int entry=boundaries[i];
-                data[Nv+entry]=val;
-            }
 
-        }
-        break;
-    case 3:
+    case 2:
 
         for(int i=0;i<Nv;++i)
         {
@@ -713,12 +310,16 @@ DrawableVectorField compute_field(DrawableTrimesh<> & m, ScalarField & f, const 
     DrawableVectorField W;
     Eigen::SparseMatrix<double> G;
     cinolib::Color c;
+
+    std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > M;
+    std::vector<Eigen::MatrixXd> RHS;
+    std::vector<std::vector<uint>> nbrs;
     c=c.RED();
     switch(mode)
     {
     case 0:
     {
-        G=GG_gradient_matrix(m,0);
+        G=gradient_matrix(m,1);
         V=DrawableVectorField(m,true);
         V=G*f;
         V.set_arrow_color(c);
@@ -727,35 +328,32 @@ DrawableVectorField compute_field(DrawableTrimesh<> & m, ScalarField & f, const 
         break;
     case 1:
     {
-        if(handle_boundary)
-            G=GG_gradient_matrix(m,1);
-        else
-            G=gradient_matrix(m,0);
-
+        G=build_matrix_for_AGS(m);
         V=DrawableVectorField(m,false);
         V=G*f;
+
         V.set_arrow_color(c);
     }
         break;
     case 2:
     {
+        build_matrix_for_LSDD(m,M,RHS,nbrs);
 
-        V=compute_FEM(m,f,handle_boundary);
+        solve_for_LSDD(m,V,M,RHS,f,nbrs);
+
         V.set_arrow_color(c);
+
+
     }
         break;
     case 3:
     {
-        V=compute_quadratic_regression(m,f,handle_boundary);
+        build_matrix_for_LR(m,M,RHS,nbrs);
+
+        solve_for_LR(m,V,M,RHS,f,nbrs);
+
         V.set_arrow_color(c);
 
-    }
-        break;
-
-    case 4:
-    {
-        V=compute_quadratic_regression_centroids(m,f,handle_boundary);
-        V.set_arrow_color(c);
     }
         break;
 
@@ -788,12 +386,8 @@ ScalarField estimate_error(const DrawableVectorField & GT, const DrawableVectorF
             }
             avg=avg/N;
             if(mode==2)
-            {
                 avg=sqrt(avg);
-            }else
-            {
-                avg/=2;
-            }
+
             std::cout<<"Err MAX="<<max<<std::endl;
             std::cout<<"Err MIN="<<min<<std::endl;
             std::cout<<"MEAN Err="<<avg<<std::endl;
@@ -809,23 +403,19 @@ ScalarField estimate_error(const DrawableVectorField & GT, const DrawableVectorF
                 {
                     err=(relative==0)?absolute_error(GT.vec_at(i),V.vec_at(i),mode):relative_error(GT.vec_at(i),V.vec_at(i),mode);
 
-                        avg+=err;
-                        max=std::max(err,max);
-                        min=std::min(err,min);
-                        ++count;
-                        data.push_back(err);
+                    avg+=err;
+                    max=std::max(err,max);
+                    min=std::min(err,min);
+                    ++count;
+                    data.push_back(err);
 
                 }
 
             }
             avg=avg/count;
             if(mode==2)
-            {
                 avg=sqrt(avg);
-            }else
-            {
-                avg/=2;
-            }
+
             std::cout<<"Err MAX="<<max<<std::endl;
             std::cout<<"Err MIN="<<min<<std::endl;
             std::cout<<"MEAN Err="<<avg<<std::endl;
@@ -837,7 +427,7 @@ ScalarField estimate_error(const DrawableVectorField & GT, const DrawableVectorF
             {
                 if(m.vert_is_boundary(i))
                 {
-                     ++count;
+                    ++count;
 
                     err=(relative==0)?absolute_error(GT.vec_at(i),V.vec_at(i),mode):relative_error(GT.vec_at(i),V.vec_at(i),mode);
 
@@ -855,12 +445,8 @@ ScalarField estimate_error(const DrawableVectorField & GT, const DrawableVectorF
             }
             avg=avg/count;
             if(mode==2)
-            {
                 avg=sqrt(avg);
-            }else
-            {
-                avg/=2;
-            }
+
             std::cout<<"Err MAX="<<max<<std::endl;
             std::cout<<"Err MIN="<<min<<std::endl;
             std::cout<<"MEAN Err="<<avg<<std::endl;
@@ -962,301 +548,6 @@ std::vector<double> dual_error(const DrawableTrimesh<> &m, const DrawableVectorF
 
 
 }
-
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField compute_quadratic_regression(DrawableTrimesh<> &m, const ScalarField & f, bool handle_boundaries)
-{
-    int nv=m.num_verts();
-    std::vector<int> rank (nv);
-    std::vector<uint> nbr;
-    vec3d vert;
-    Eigen::VectorXd X(6);
-    DrawableVectorField V=DrawableVectorField(m,false);
-    std::vector<imaginary_vertex> nbr_aux;
-
-    for (int i=0;i<nv;++i)
-    {
-        nbr=m.vert_ordered_vert_ring(i);
-        nbr.push_back(i);
-        vert=m.vert(i);
-        if(nbr.size()<6)
-        {
-            std::set<uint> two_ring=m.vert_n_ring(i,2);
-            nbr.clear();
-            for(uint k : two_ring)
-            {
-                nbr.push_back(k);
-
-            }
-            nbr.push_back(i);
-        }
-
-        if(m.vert_is_boundary(i) && handle_boundaries)
-        {
-            nbr_aux=nbr_for_boundaries(m,i);
-        }
-
-        Eigen::MatrixXd coeff(nbr.size()+nbr_aux.size(),6);
-        Eigen::VectorXd b(nbr.size()+nbr_aux.size());
-        int s=nbr.size();
-        for (int j=0;j<nbr.size()+nbr_aux.size();++j)
-        {
-            vec3d pos;
-            double wgt;
-            if(j<nbr.size())
-            {
-                pos=m.vert(nbr[j]);
-                wgt=(nbr[j]==i)? 1:1/(pos-vert).length_squared();
-                b(j)=f[nbr[j]]*wgt;
-            }else
-            {
-                pos=nbr_aux[j-s].p;
-                wgt=1/(pos-vert).length_squared();
-                uint curr=nbr_aux[j-s].real-nv;
-                b(j)=f[curr]*wgt;
-            }
-
-            coeff(j,0)=pow(pos[0],2)*wgt;
-            coeff(j,1)=pos[0]*pos[1]*wgt;
-            coeff(j,2)=pow(pos[1],2)*wgt;
-            coeff(j,3)=pos[0]*wgt;
-            coeff(j,4)=pos[1]*wgt;
-            coeff(j,5)=1*wgt;
-        }
-        Eigen::MatrixXd coeffT=Transpose<Eigen::MatrixXd>(coeff);
-        Eigen::MatrixXd A=coeffT*coeff;
-        Eigen::VectorXd B=coeffT*b;
-        Eigen::ColPivHouseholderQR<MatrixXd> dec(A);
-        X=dec.solve(B);
-        vec3d sol= vec3d (2*X(0)*vert.x()+X(1)*vert.y()+X(3),2*X(2)*vert.y()+X(1)*vert.x()+X(4),0);
-        V.set(i,sol);
-
-    }
-    computations.rank=rank;
-    return V;
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField compute_quadratic_regression_centroids(DrawableTrimesh<> &m, const ScalarField & f, bool handle_boundaries)
-{
-    int nv=m.num_verts();
-    std::vector<int> rank (nv);
-    std::vector<uint> nbr;
-    std::vector<double> values;
-    vec3d vert;
-    Eigen::VectorXd X(6);
-    DrawableVectorField W=DrawableVectorField(m,false);
-    std::vector<imaginary_vertex> nbr_aux;
-
-    for (int i=0;i<nv;++i)
-    {
-
-        nbr=m.vert_ordered_vert_ring(i);
-        nbr.push_back(i);
-        values.clear();
-        vert=m.vert(i);
-        //        if(m.vert_is_boundary(i) && handle_boundaries)
-        //        {
-        //            nbr_aux=nbr_for_boundaries(m,i);
-        //        }
-        int V=nbr.size();
-        //        int I=nbr_aux.size();
-        //        int size=V+I;
-
-
-        if(V<6)
-        {
-            for(uint j=0;j<V;++j)
-            {
-                for(uint pid : m.adj_v2p(nbr[j]))
-                {
-                    if(!m.poly_data(pid).marked)
-                    {
-                        nbr.push_back(pid);
-                        std::vector<uint> pid_vertices=m.poly_verts_id(pid);
-                        double value=0;
-                        for(uint j=0;j<3;++j)
-                        {
-                            value+=f[pid_vertices[j]];
-                        }
-                        values.push_back(value/3);
-                        m.poly_data(pid).marked=true;
-
-                    }
-                }
-            }
-        }
-        int P=values.size();
-        int size=P+V;
-
-        Eigen::MatrixXd coeff(size,6);
-        Eigen::VectorXd b(size);
-
-        for (int j=0;j<size;++j)
-        {
-            vec3d pos;
-            double wgt;
-            if(j<V)
-            {
-                uint curr=nbr[j];
-                pos=m.vert(curr);
-                wgt=(curr==i)?:1/(pos-vert).length_squared();
-                b(j)=f[curr]*wgt;
-
-            }else
-            {
-                uint curr=nbr[j];
-                pos=m.poly_centroid(curr);
-                wgt=1/(pos-vert).length_squared();
-                b(j)=values[j-V]*wgt;
-            }
-
-            coeff(j,0)=pow(pos[0],2)*wgt;
-            coeff(j,1)=pos[0]*pos[1]*wgt;
-            coeff(j,2)=pow(pos[1],2)*wgt;
-            coeff(j,3)=pos[0]*wgt;
-            coeff(j,4)=pos[1]*wgt;
-            coeff(j,5)=1*wgt;
-        }
-
-        Eigen::MatrixXd coeffT=Transpose<Eigen::MatrixXd>(coeff);
-        Eigen::MatrixXd A=coeffT*coeff;
-        Eigen::VectorXd B=coeffT*b;
-        Eigen::ColPivHouseholderQR<MatrixXd> dec(A);
-
-        X=dec.solve(B);
-
-        vec3d sol= vec3d (2*X(0)*vert.x()+X(1)*vert.y()+X(3),2*X(2)*vert.y()+X(1)*vert.x()+X(4),0);
-        W.set(i,sol);
-
-
-    }
-    computations.rank=rank;
-    return W;
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField compute_FEM(DrawableTrimesh<> &m, const ScalarField & f, bool handle_bondary)
-{
-
-
-    int Nv=m.num_verts();
-    int M=0;
-    double delta=0;
-    std::vector<uint> nbr;
-    vec3d grad;
-    std::vector<vec3d> coords=m.vector_verts();
-    DrawableVectorField V=DrawableVectorField(m,false);
-    Eigen::VectorXd X(2);
-    Eigen::VectorXd b(2);
-    std::vector<double> values;
-    for (int i=0;i<Nv;++i)
-    {
-        values.clear();
-        nbr=m.vert_ordered_vert_ring(i);
-        int s=nbr.size();
-        if(s<3)
-        {
-            for(uint j=0;j<s;++j)
-            {
-                for(uint pid : m.adj_v2p(nbr[j]))
-                {
-                    if(!m.poly_data(pid).marked)
-                    {
-                        nbr.push_back(pid);
-                        std::vector<uint> pid_vertices=m.poly_verts_id(pid);
-                        double value=0;
-                        for(uint j=0;j<3;++j)
-                        {
-                            value+=f[pid_vertices[j]];
-                        }
-                        values.push_back(value/3);
-                        m.poly_data(pid).marked=true;
-
-                    }
-                }
-            }
-        }
-        M=s+values.size();
-        Eigen::MatrixXd B(M,2);
-        Eigen::VectorXd sigma(M);
-        for(int j=0;j<M;++j)
-        {
-            if(j<s)
-            {
-                vec3d vij=coords[nbr[j]].operator -(coords[i]);
-                double wgt=1/vij.length_squared();
-                B(j,0)=vij[0]*wgt;
-                B(j,1)=vij[1]*wgt;
-                sigma(j)=(f[nbr[j]]-f[i])*wgt;
-            }
-            else
-            {
-                vec3d vij=m.poly_centroid(nbr[j]).operator -(coords[i]);
-                double wgt=1/vij.length_squared();
-                B(j,0)=vij[0]*wgt;
-                B(j,1)=vij[1]*wgt;
-                double value=values[j-s];
-                sigma(j)=(value-f[i])*wgt;
-            }
-
-
-            if(j==M-1)
-            {
-                Eigen::Matrix2d A(2,2);
-                Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
-                A=Bt*B;
-                Eigen::ColPivHouseholderQR<Matrix2d> dec(A);
-                b=Bt*sigma;
-
-                X=dec.solve(b);
-
-
-                grad=vec3d(X(0),X(1),0);
-                V.set(i,grad);
-            }
-
-        }
-    }
-    return V;
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField arrows_normalization(const DrawableTrimesh<> &m, const DrawableVectorField &V, const int mode,const int scale_factor)
-{
-    int N=0;
-    vec3d max=vec3d(0,0,0);
-    vec3d min=vec3d(0,0,0);
-    DrawableVectorField W;
-
-    double treshold=1e-8;
-    if(mode!=0)
-    {
-        N=m.num_verts();
-        W=DrawableVectorField(m,false);
-
-
-    }else
-    {
-        N=m.num_polys();
-        W=DrawableVectorField(m,true);
-
-    }
-
-
-    for(int i=0;i<N;++i)
-    {
-        if(V.vec_at(i).length()>50)
-        {
-            W.vec_at(i)=V.vec_at(i);
-            W.vec_at(i).normalize();
-        }else
-        {
-            W.vec_at(i)=V.vec_at(i);
-        }
-    }
-    return W;
-
-}
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ScalarField heat_map_normalization(const ScalarField &f,double min,double max,double sat_neg,double sat_pos)
 {
@@ -1302,12 +593,10 @@ void bring_the_field_inside(const DrawableTrimesh<> &m, DrawableTrimesh<> &m_gri
         std::vector<double> wgts;
         cache.locate(m_grid.vert(vid), pid, wgts);
 
-        if(poly_has_vert_on_srf(m,pid))
-        {
-
+        if(poly_has_vert_on_boundary(m,pid))
             m_grid.vert_data(vid).marked=true;
-            //continue;
-        }//else{
+
+
         if(method==0)
         {
             W.set(vid,V.vec_at(pid));
@@ -1329,53 +618,11 @@ void bring_the_field_inside(const DrawableTrimesh<> &m, DrawableTrimesh<> &m_gri
             W.set(vid,interpolated_value);
         }
 
-        //}
 
 
-    }
-
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField compute_PCE(const DrawableTrimesh<> & m, ScalarField &f)
-{
-    DrawableVectorField W=DrawableVectorField(m,true);
-
-    for(int pid=0; pid<m.num_polys(); ++pid)
-    {
-        double area = std::max(m.poly_area(pid), 1e-5) * 2.0; // (2 is the average term : two verts for each edge)
-        vec3d n     = m.poly_data(pid).normal;
-        vec3d contribute(0,0,0);
-        for(uint off=0; off<m.verts_per_poly(pid); ++off)
-        {
-            uint  prev = m.poly_vert_id(pid,off);
-            uint  curr = m.poly_vert_id(pid,(off+1)%m.verts_per_poly(pid));
-            uint  next = m.poly_vert_id(pid,(off+2)%m.verts_per_poly(pid));
-            vec3d u    = m.vert(next) - m.vert(curr);
-            vec3d v    = m.vert(curr) - m.vert(prev);
-            vec3d u_90 = u.cross(n); u_90.normalize();
-            vec3d v_90 = v.cross(n); v_90.normalize();
-
-            vec3d per_vert_sum_over_edge_normals =u_90 * u.length() + v_90 * v.length();
-
-            per_vert_sum_over_edge_normals*=f[curr];
-
-            per_vert_sum_over_edge_normals /= area;
-            contribute+=per_vert_sum_over_edge_normals;
-        }
-        W.set(pid,contribute);
 
     }
-    return W;
-}
-//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField compute_AGS(const DrawableTrimesh<> & m, ScalarField &f)
-{
-    DrawableVectorField W=DrawableVectorField(m,true);
-    DrawableVectorField V=DrawableVectorField(m,false);
-    W=compute_PCE(m,f);
-    V=from_f2v(W,m);
 
-    return V;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 Eigen::VectorXd fit_with_quadrics(const DrawableTrimesh<> &m, uint i, ScalarField &f)
@@ -1420,3 +667,286 @@ Eigen::VectorXd fit_with_quadrics(const DrawableTrimesh<> &m, uint i, ScalarFiel
 
     return X;
 }
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+Eigen::SparseMatrix<double> build_matrix_for_AGS(const DrawableTrimesh<> &m)
+{
+    Eigen::SparseMatrix<double> G(m.num_verts()*3, m.num_verts());
+    std::vector<Entry> entries;
+    DrawableVectorField V=DrawableVectorField(m,false);
+
+    uint prev;
+    uint next;
+    uint curr;
+
+    vec3d c_next;
+    vec3d c_prev;
+    vec3d c_vert;
+
+    for(uint vid=0; vid<m.num_verts(); ++vid)
+    {
+
+        std::vector<uint> nbr=m.vert_ordered_vert_ring(vid);
+        int s=nbr.size();
+        std::vector<std::pair<uint,vec3d>> vert_contr;
+        double area=0.f;
+
+        for(uint j=0;j<s;++j)
+        {
+            c_vert=vec3d(0,0,0);
+
+            if(m.vert_is_boundary(vid) && j==0)
+            {
+                prev=vid;
+                curr=nbr[j];
+                next=nbr[j+1];
+
+                uint pid=m.poly_id({prev,curr,next});
+                area+=m.poly_area(pid);
+                vec3d n=m.poly_data(pid).normal;
+
+                c_prev=(m.vert(curr)-m.vert(prev)).cross(n);
+                c_next=(m.vert(next)-m.vert(curr)).cross(n);
+
+                c_vert+=c_prev;
+
+            }else if(m.vert_is_boundary(vid) && j==s-1)
+            {
+                prev=nbr[j-1];
+                curr=nbr[j];
+                next=vid;
+
+                uint pid=m.poly_id({prev,curr,next});
+                vec3d n=m.poly_data(pid).normal;
+
+                c_prev=(m.vert(curr)-m.vert(prev)).cross(n);
+                c_next=(m.vert(next)-m.vert(curr)).cross(n);
+                c_vert+=c_next;
+            }
+            else
+            {
+                prev=(j==0)?nbr[s-1]:nbr[j-1];
+                curr=nbr[j];
+                next=(j==s-1)? nbr[0]:nbr[j+1];
+
+                uint pid0=m.poly_id({prev,vid,curr});
+                uint pid1=m.poly_id({curr,vid,next});
+
+                vec3d n0=m.poly_data(pid0).normal;
+                vec3d n1=m.poly_data(pid1).normal;
+
+                area+=m.poly_area(pid1);
+
+                c_prev=(m.vert(curr)-m.vert(prev)).cross(n0);
+                c_next=(m.vert(next)-m.vert(curr)).cross(n1);
+            }
+
+            vert_contr.push_back(std::make_pair(curr, (c_prev+c_next)/2));
+            if(c_vert.length()>0)
+                vert_contr.push_back(std::make_pair(vid, c_vert/2));
+        }
+        // note: Eigen::setFromTriplets will take care of summing contributs w.r.t. multiple polys
+
+        uint row = vid * 3;
+        for(auto c : vert_contr)
+        {
+            entries.push_back(Entry(row  , c.first, c.second.x()/area));
+            entries.push_back(Entry(row+1, c.first, c.second.y()/area));
+            entries.push_back(Entry(row+2, c.first, c.second.z()/area));
+        }
+    }
+
+    G.setFromTriplets(entries.begin(), entries.end());
+
+    return G;
+}
+
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void build_matrix_for_LSDD(DrawableTrimesh<> &m, std::vector<Eigen::ColPivHouseholderQR<MatrixXd> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs)
+{
+    int Nv=m.num_verts();
+    int M=0;
+    double wgt;
+    std::vector<uint> nbr;
+    vec3d grad;
+    DrawableVectorField V=DrawableVectorField(m,false);
+    Eigen::VectorXd X(2);
+    Eigen::VectorXd b(2);
+    std::vector<double> values;
+    for (int i=0;i<Nv;++i)
+    {
+        values.clear();
+        nbr=m.vert_ordered_vert_ring(i);
+
+
+        if(nbr.size()<3)
+        {
+            std::set<uint> two_ring=m.vert_n_ring(i,2);
+            nbr.clear();
+            for(uint k : two_ring)
+            {
+
+                nbr.push_back(k);
+
+            }
+        }
+        int s=nbr.size();
+        nbrs.push_back(nbr);
+        Eigen::MatrixXd B(s,2);
+        Eigen::VectorXd sigma(s);
+        Eigen::DiagonalMatrix<double,Eigen::Dynamic> W(s);
+        Eigen::MatrixXd Rhs;
+        for(int j=0;j<s;++j)
+        {
+            vec3d vij=m.vert(nbr[j])-m.vert(i);
+            wgt=1/vij.length_squared();
+            B(j,0)=vij[0];
+            B(j,1)=vij[1];
+            W.diagonal()[j]=wgt;
+        }
+
+        Eigen::MatrixXd A;
+        Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
+
+        A=Bt*W*B;
+        Rhs=Bt*W;
+        Eigen::ColPivHouseholderQR<MatrixXd> dec(A);
+        MFact.push_back(dec);
+        RHS.push_back(Rhs);
+
+    }
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void build_matrix_for_LR(DrawableTrimesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs)
+{
+    int nv=m.num_verts();
+    std::vector<uint> nbr;
+    Eigen::VectorXd X(6);
+
+
+    double sigma=pow(m.edge_avg_length(),2);
+    double factor=1/sigma*sqrt(2*M_PI);
+
+    for (int i=0;i<nv;++i)
+    {
+        nbr=m.vert_ordered_vert_ring(i);
+
+        nbr.push_back(i);
+
+        if(nbr.size()<6)
+        {
+            std::set<uint> two_ring=m.vert_n_ring(i,2);
+            nbr.clear();
+            for(uint k : two_ring)
+            {
+                nbr.push_back(k);
+
+            }
+            nbr.push_back(i);
+        }
+
+        int s=nbr.size();
+        nbrs.push_back(nbr);
+        Eigen::MatrixXd coeff(s,6);
+
+        Eigen::DiagonalMatrix<double,Eigen::Dynamic> W(s);
+
+        for (int j=0;j<s;++j)
+        {
+            vec3d pos;
+            double wgt;
+
+            pos=m.vert(nbr[j]);
+            double d=(pos-m.vert(i)).length_squared();
+            d/=sigma;
+            wgt=exp(-d)*factor;
+            W.diagonal()[j]=wgt;
+
+
+
+            coeff(j,0)=pow(pos[0],2);
+            coeff(j,1)=pos[0]*pos[1];
+            coeff(j,2)=pow(pos[1],2);
+            coeff(j,3)=pos[0];
+            coeff(j,4)=pos[1];
+            coeff(j,5)=1;
+
+        }
+        Eigen::MatrixXd coeffT=Transpose<Eigen::MatrixXd>(coeff);
+        Eigen::MatrixXd A=coeffT*W*coeff;
+        Eigen::MatrixXd Rhs=coeffT*W;
+
+
+        Eigen::ColPivHouseholderQR<Eigen::MatrixXd>dec(A);
+
+
+        M.push_back(dec);
+        RHS.push_back(Rhs);
+    }
+}
+
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void solve_for_LSDD(DrawableTrimesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<MatrixXd> > &M, std::vector<MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs)
+{
+    V=DrawableVectorField(m,false);
+    Eigen::VectorXd X(2);
+    Eigen::VectorXd b(2);
+    vec3d grad;
+
+
+    for(int i=0;i<m.num_verts();++i)
+    {
+        Eigen::MatrixXd Rhs=RHS[i];
+
+        std::vector<uint> nbr=nbrs[i];
+        int p=nbr.size();
+
+        Eigen::VectorXd tmp(p);
+
+        for(int j=0;j<p;++j)
+        {
+            tmp(j)=f[nbr[j]]-f[i];
+        }
+        b=Rhs*tmp;
+
+
+        X=M[i].solve(b);
+
+        grad=vec3d(X(0),X(1),0);
+
+        V.set(i,grad);
+
+
+    }
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+void solve_for_LR(DrawableTrimesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<MatrixXd> RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs)
+{
+    V=DrawableVectorField(m,false);
+    Eigen::VectorXd X(6);
+    Eigen::VectorXd b(6);
+    vec3d grad;
+    vec3d vert;
+
+    for(int i=0;i<RHS.size();++i)
+    {
+        vert=m.vert(i);
+        Eigen::MatrixXd AtW=RHS[i];
+        int p=nbrs[i].size();
+        Eigen::VectorXd tmp(p);
+        for(int j=0;j<nbrs[i].size();++j)
+        {
+            tmp(j)=f[nbrs[i][j]];
+        }
+
+
+        b=AtW*tmp;
+        X=M[i].solve(b);
+        grad= vec3d (2*X(0)*vert.x()+X(1)*vert.y()+X(3),2*X(2)*vert.y()+X(1)*vert.x()+X(4),0);
+        V.set(i,grad);
+
+    }
+
+
+}
+//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

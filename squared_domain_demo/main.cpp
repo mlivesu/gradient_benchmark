@@ -19,6 +19,9 @@ int main(int argc, char **argv)
     init_events(gui);
 
     make_triangulation(computations.m,1,25);
+
+    computations.m;
+
     make_grid(computations.m_grid,100);
     gui.canvas.push_obj(&computations.m);
 

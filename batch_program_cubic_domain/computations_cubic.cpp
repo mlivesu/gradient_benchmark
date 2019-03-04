@@ -495,14 +495,17 @@ DrawableVectorField compute_field(const DrawableTetmesh<> & m, ScalarField & f, 
     case 0:
 
 
-        V=compute_PCE(m,f);
+        G=gradient_matrix(m);
+        V=DrawableVectorField(m,true);
+        V=G*f;
         V.set_arrow_color(c);
-
 
         break;
     case 1:
 
-        V=GG_on_verts(m,f);
+        G=build_matrix_for_AGS(m);
+        V=DrawableVectorField(m,false);
+        V=G*f;
         V.set_arrow_color(c);
 
         break;
@@ -1374,7 +1377,7 @@ DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f, int
     return V;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
+Eigen::SparseMatrix<double> build_matrix_for_AGS(const DrawableTetmesh<> &m)
 {
     Eigen::SparseMatrix<double> G(m.num_verts()*3, m.num_verts());
     std::vector<Entry> entries;
@@ -1394,18 +1397,37 @@ DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
 
             face_contr.push_back(std::make_pair(f, contribute));
 
+            if(m.vert_is_on_srf(vid))
+            {
+               std::vector<uint> faces=m.poly_f2f(pid,f);
+               for(uint k=0;k<faces.size();++k)
+               {
+                   if(m.face_is_on_srf(faces[k]))
+                   {
+                       n=m.poly_face_normal(pid,faces[k]);
+                       a=m.face_area(faces[k]);
+                       contribute=(n*a)/3;
+                       face_contr.push_back(std::make_pair(faces[k], contribute));
+
+                   }
+               }
+
+            }
+
+
+
         }
         uint row = vid * 3;
         for(uint s=0;s<face_contr.size();++s)
         {
-            std::vector<uint> vids=m.face_verts_id(face_contr[s].first);
-            for(uint j=0;j<3;++j)
-            {
-                entries.push_back(Entry(row  , vids[j],face_contr[s].second.x()/vol));
-                entries.push_back(Entry(row+1, vids[j], face_contr[s].second.y()/vol));
-                entries.push_back(Entry(row+2, vids[j], face_contr[s].second.z()/vol));
+             std::vector<uint> vids=m.face_verts_id(face_contr[s].first);
+             for(uint j=0;j<3;++j)
+             {
+                 entries.push_back(Entry(row  , vids[j],face_contr[s].second.x()/vol));
+                 entries.push_back(Entry(row+1, vids[j], face_contr[s].second.y()/vol));
+                 entries.push_back(Entry(row+2, vids[j], face_contr[s].second.z()/vol));
 
-            }
+             }
         }
         // note: Eigen::setFromTriplets will take care of summing contributs w.r.t. multiple polys
 
@@ -1414,12 +1436,11 @@ DrawableVectorField GG_on_verts(const DrawableTetmesh<> &m, ScalarField &f)
 
 
     G.setFromTriplets(entries.begin(), entries.end());
-    V=G*f;
-    return V;
-}
 
+    return G;
+}
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Matrix3d> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs)
+void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<MatrixXd> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs)
 {
     int Nv=m.num_verts();
     int M=0;
@@ -1459,11 +1480,11 @@ void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseh
             B(j,2)=vij[2];
 
         }
-        Eigen::Matrix3d A(3,3);
+        Eigen::MatrixXd A;
         Eigen::MatrixXd Bt=Transpose<Eigen::MatrixXd>(B);
         A=Bt*W*B;
         Eigen::MatrixXd Rhs=Bt*W;
-        Eigen::ColPivHouseholderQR<Matrix3d> dec(A);
+        Eigen::ColPivHouseholderQR<MatrixXd> dec(A);
         MFact.push_back(dec);
         RHS.push_back(Rhs);
     }
@@ -1540,7 +1561,7 @@ void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHousehol
             pos=coords[nbr[j]];
             double d=(pos-vert).length_squared();
             d/=sigma;
-            wgt=sqrt(exp(-d)*factor);
+            wgt=exp(-d)*factor;
             W.diagonal()[j]=wgt;
 
 
@@ -1568,7 +1589,7 @@ void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHousehol
 }
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Matrix3d> > &M, std::vector<MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation)
+void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<MatrixXd> > &M, std::vector<MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs)
 {
     V=DrawableVectorField(m,false);
     Eigen::VectorXd X(3);
@@ -1603,7 +1624,7 @@ void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Ei
    }
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-void solve_for_LR(DrawableTetmesh<> &m,DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<MatrixXd> RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs, std::chrono::duration<double> time_precom, std::chrono::duration<double> time_estimation)
+void solve_for_LR(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<MatrixXd> &RHS, ScalarField &f, std::vector<std::vector<uint> > &nbrs)
 {
    V=DrawableVectorField(m,false);
     Eigen::VectorXd X(10);

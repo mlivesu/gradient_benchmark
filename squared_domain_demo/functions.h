@@ -8,7 +8,6 @@ enum scalar_functions
     FUNC_0,
     FUNC_1,
     FUNC_2,
-    FUNC_3,
     N_FUNCTIONS
 };
 enum error_type
@@ -45,9 +44,7 @@ enum tri
 {
     regular,
     Delaunay,
-    non_uniform,
-    anisotropic,
-    grid
+    anisotropic
 };
 
 enum vertices
@@ -59,12 +56,11 @@ enum vertices
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-std::string f_names[4]
+std::string f_names[3]
 {
 
-    "axsin(3bx)sin(by^2)",
-    "b(x-1/2)^2+c(y-1/2)^2",
     "asin(bx)cos(by)",
+    "b(x-1/2)^2+c(y-1/2)^2",
     "x+y"
 
 };
@@ -95,13 +91,12 @@ std::string canvas_names[4]
 };
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-std::string tri_names[5]
+std::string tri_names[3]
 {
     "Regular",
     "Delaunay",
-    "Non Uniform",
-    "Anisotropic",
-    "Grid"
+    "Anisotropic"
+
 
 };
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

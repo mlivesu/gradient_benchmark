@@ -94,7 +94,7 @@ void bring_the_field_inside(const DrawableTetmesh<> &m, DrawableTetmesh<> &m_gri
 std::vector<double> barycentric_coordinates(const vec3d &A,const vec3d &B, const vec3d &C, const vec3d &D, const vec3d &P);
 DrawableVectorField compute_PCE(const DrawableTetmesh<> & m, ScalarField &f);
 DrawableVectorField compute_AGS(const DrawableTetmesh<> & m, ScalarField &f);
-DrawableVectorField GG_on_verts(const DrawableTetmesh<> & m, ScalarField &f);
+Eigen::SparseMatrix<double> build_matrix_for_AGS(const DrawableTetmesh<> & m);
 void build_matrix_for_LSDD(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &MFact, std::vector<Eigen::MatrixXd> &RHS, std::vector<std::vector<uint> > &nbrs);
 void build_matrix_for_LR(DrawableTetmesh<> &m, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS,std::vector<std::vector<uint> > &nbrs);
 void solve_for_LSDD(DrawableTetmesh<> &m, DrawableVectorField &V, std::vector<Eigen::ColPivHouseholderQR<Eigen::MatrixXd> > &M, std::vector<Eigen::MatrixXd> &RHS, ScalarField & f, std::vector<std::vector<uint> > &nbrs);

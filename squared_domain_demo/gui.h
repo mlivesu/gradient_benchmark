@@ -14,7 +14,6 @@
 #include <cinolib/scalar_field.h>
 #include <cinolib/drawable_vector_field.h>
 #include <QFileDialog>
-#include <GG_gradient.h>
 #include "triangulations.h"
 #include "computations.h"
 
@@ -41,7 +40,6 @@ typedef struct
     QRadioButton      scalar_field;
     QRadioButton      Err;
     QCheckBox         InsideError;
-    QCheckBox         boundaries;
     QPushButton       save;
     QSpinBox          N;
     QSpinBox          anis;
