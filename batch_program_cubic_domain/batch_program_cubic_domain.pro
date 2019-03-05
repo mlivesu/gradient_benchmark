@@ -1,4 +1,5 @@
-LIBS_PATH       = #Type the path to cinolib here.
+LIBS_PATH       = #Type the path to cinolib directory here.
+DATA_PATH       = #Type the path to the folder containing the data here.
 TEMPLATE        = app
 TARGET          = batch_program_cubic_domain
 QT             += core opengl

@@ -1,4 +1,4 @@
-LIBS_PATH       = #Enter your path to cinolib folder here
+LIBS_PATH       = #Type the path to cinolib directory here
 TEMPLATE        = app
 TARGET          = squared_domain_demo
 QT             += core opengl

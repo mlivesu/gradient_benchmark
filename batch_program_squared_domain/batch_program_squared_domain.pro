@@ -1,5 +1,5 @@
-LIBS_PATH       = $$PWD/../../gradient_fields/lib
-DATA_PATH       = $$PWD/../../data
+LIBS_PATH       = #Type the path to cinolib directory here.
+DATA_PATH       = #Type the path to the folder containing the data here.
 
 TEMPLATE        = app
 TARGET          = batch_program_squared_domain
