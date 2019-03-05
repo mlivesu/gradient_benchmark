@@ -59,8 +59,8 @@ typedef struct
     QSpinBox          c;
     QComboBox         ErrType;
     QComboBox         mode;
-    QSlider           sl_scalar_field;
-    QSlider           sl_error;
+    QSlider           sl_error_pos;
+    QSlider           sl_error_neg;
     QSlider           sl_vector_fields;
     QSlider           sl_slice_x;
     QSlider           sl_slice_y;

@@ -157,13 +157,11 @@ double scale_function(double x, double md, double Md)
 
 
     double amplitude=Md-md;
-    //    double delta=amplitude/25;
-    //    double Mdtmp=md+scale_factor*delta;
+
 
     x=(x-md)/(Md-md);
 
-    //    if (x>=1){x=0.999;}
-    //    if (x<=0){x=1e-10;}
+
     return x;
 }
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

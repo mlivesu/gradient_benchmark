@@ -151,27 +151,19 @@ void init_gui(GUI & gui)
     button_layout->addWidget(&gui.save,16,0);
     button_layout->addWidget(&gui.reset,16,1);
      button_layout->addWidget(&gui.load,16,2);
-    button_layout->addWidget(new QLabel("Rescale Scalar Field"),10,0);
-    gui.sl_scalar_field.setOrientation(Qt::Horizontal);
+     button_layout->addWidget(new QLabel("Negative Sautration"),10,0);
+     button_layout->addWidget(new QLabel("Positive Sautration"),11,0);
+     gui.sl_error_neg.setOrientation(Qt::Horizontal);
+     gui.sl_error_pos.setOrientation(Qt::Horizontal);
 
-    button_layout->addWidget(&gui.sl_scalar_field,10,1);
-    gui.sl_scalar_field.setRange(1,50);
-    gui.sl_scalar_field.setValue(25);
+     button_layout->addWidget(&gui.sl_error_neg,10,1);
+     button_layout->addWidget(&gui.sl_error_pos,11,1);
+     gui.sl_error_neg.setRange(0,500);
+     gui.sl_error_neg.setValue(0);
 
+     gui.sl_error_pos.setRange(250,1000);
+     gui.sl_error_pos.setValue(1000);
 
-    button_layout->addWidget(new QLabel("Rescale Error Map"),11,0);
-    gui.sl_error.setOrientation(Qt::Horizontal);
-
-    button_layout->addWidget(&gui.sl_error,11,1);
-    gui.sl_error.setRange(1,50);
-    gui.sl_error.setValue(25);
-
-    /*button_layout->addWidget(new QLabel("Rescale Vector Field"),9,2);
-    button_layout->addWidget(&gui.sl_vector_fields,9,3);
-
-    gui.sl_vector_fields.setRange(1,10);
-    gui.sl_vector_fields.setValue(1);
-    gui.sl_vector_fields.setDisabled(true);*/
 
     button_layout->setSpacing(0);
     button_layout->setHorizontalSpacing(0);
@@ -186,7 +178,7 @@ void init_gui(GUI & gui)
 
     for(int i=0; i<N_FUNCTIONS; ++i) gui.cb_function.addItem(f_names[i].c_str());
     for(int i=0; i<N_METHODS; ++i) gui.method.addItem(method_names[i].c_str());
-    for(int i=0; i<=anisotropic; ++i) gui.choose_tri.addItem(tri_names[i].c_str());
+    for(int i=0; i<N_tri; ++i) gui.choose_tri.addItem(tri_names[i].c_str());
     for(int i=0; i<=relative; ++i) gui.ErrType.addItem(err_names[i].c_str());
     for(int i=0; i<=angle; ++i) gui.mode.addItem(mode_names[i].c_str());
     for(int i=0; i<=only_srf; ++i) gui.type_of_vertices.addItem(vertices_names[i].c_str());
@@ -216,7 +208,7 @@ void init_events(GUI & gui)
 {
     gui.canvas.setMinimumSize(500,500);
     // bind mouse click handler
-    /* gui.canvas.callback_mouse_press = [&](GLcanvas *c, QMouseEvent *e)
+     gui.canvas.callback_mouse_press = [&](GLcanvas *c, QMouseEvent *e)
     {
         if(e->modifiers() == Qt::ControlModifier)
         {
@@ -238,14 +230,10 @@ void init_events(GUI & gui)
                     {
                         vid = closest_vertex(p,&computations_cubic.dual_m);
                     }
-                    std::cout << mode_names[gui.mode.currentIndex()].c_str() <<" error calculated:"<<std::endl;
-                    std::cout<<computations_cubic.err[vid] << std::endl;
-                }else
-                {
-                    vid= closest_vertex(p,&computations_cubic.m);
-                    //std::cout << computations_cubic.f[vid] << std::endl;
-                    std::cout << vid << std::endl;
+
                 }
+                std::cout << mode_names[gui.mode.currentIndex()].c_str() <<" error calculated:"<<std::endl;
+                std::cout<<computations_cubic.err[vid] << std::endl;
             }
         }
         else if(e->modifiers() == Qt::ShiftModifier)
@@ -257,14 +245,14 @@ void init_events(GUI & gui)
             {
 
                 uint vid = closest_vertex(p,&computations_cubic.m);
-                std::cout<<"Norm of the gradient="<<computations_cubic.V.vec_at(vid).length()<<std::endl;
-                std::cout<<"Norm of the ground truth="<<computations_cubic.GT.vec_at(vid).length()<<std::endl;
+                std::cout <<"Scalar Field value:"<< computations.f[vid] << std::endl;
+
             }
             c->updateGL();
 
 
         }
-    };*/
+    };
 
 
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -273,19 +261,20 @@ void init_events(GUI & gui)
         if(gui.show_heat_map.isChecked())
         {
             gui.choose_heat_map.setDisabled(false);
-            gui.sl_scalar_field.setDisabled(false);
-            gui.sl_error.setDisabled(false);
+
+            gui.sl_error_neg.setDisabled(false);
+            gui.sl_error_pos.setDisabled(false);
 
             if (gui.scalar_field.isChecked())
             {
                 gui.canvas.pop(&computations_cubic.dual_m);
                 gui.canvas.pop(&computations_cubic.m_grid);
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_out_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_out_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -299,32 +288,32 @@ void init_events(GUI & gui)
 
                 if(gui.InsideError.isChecked())
                 {/*
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                     //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT_grid,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);*/
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
                 }else
                 {
-                    //                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    //                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     //                    computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     //                    computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    //                    computations_cubic.err=estimate_error(computations_cubic.GT_grid,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     //                    computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -337,12 +326,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -352,7 +341,7 @@ void init_events(GUI & gui)
 
                 if(gui.but.isChecked())
                 {
-                    //                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    //                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     //                    computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                     //                    computations_cubic.V_norm=computations_cubic.V;
                     //                    computations_cubic.V_norm.normalize();
@@ -374,8 +363,8 @@ void init_events(GUI & gui)
         }else{
 
             gui.choose_heat_map.setDisabled(true);
-            gui.sl_scalar_field.setDisabled(true);
-            gui.sl_error.setDisabled(true);
+            gui.sl_error_neg.setDisabled(true);
+            gui.sl_error_pos.setDisabled(true);
             gui.error.setDisabled(true);
             computations_cubic.dual_m.show_in_vert_color();
             computations_cubic.dual_m_grid.show_in_vert_color();
@@ -391,7 +380,7 @@ void init_events(GUI & gui)
     {
         if(gui.but.isChecked())
         {
-                        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                         computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                         computations_cubic.V_norm=computations_cubic.V;
                         computations_cubic.V_norm.normalize();
@@ -418,125 +407,45 @@ void init_events(GUI & gui)
 
     });
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    QSlider::connect(&gui.sl_scalar_field, &QSlider::valueChanged, [&]()
-    {
-        if (gui.scalar_field.isChecked())
-        {
-                        gui.canvas.pop(&computations_cubic.dual_m);
-                        gui.canvas.pop(&computations_cubic.m_grid);
-            //            //computations_cubic.dual_m.clear();
-
-
-            //            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-            //            find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-            computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
-            computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-            computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
-
-
-        }
-
-        if (gui.Err.isChecked())
-        {
-            /*gui.canvas.pop(&computations_cubic.dual_m);
-            gui.canvas.pop(&computations_cubic.m_grid);*/
-            if(gui.InsideError.isChecked())
-            {
-                //                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-                //                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                //                //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-
-                //                bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
-                //                computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                //                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
-                //                computations_cubic.max=find_max_norm(computations_cubic.GT);
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
-                computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
-
-                gui.canvas.pop(&computations_cubic.m);
-                gui.canvas.push_obj(&computations_cubic.m_grid,false);
-                computations_cubic.m_grid.show_in_wireframe(false);
-                computations_cubic.m_grid.show_out_wireframe(false);
-                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
-                computations_cubic.m.show_in_vert_color();
-                computations_cubic.m.show_out_vert_color();
-                gui.canvas.push_obj(&computations_cubic.m,false);
-
-            }else{
-
-                /*computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-                computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
-                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
-                computations_cubic.max=find_max_norm(computations_cubic.GT);*/
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
-
-                if(gui.method.currentIndex()==0)
-                {
-
-
-                    computations_cubic.err_norm.copy_to_mesh(computations_cubic.dual_m);
-
-                    gui.canvas.pop(&computations_cubic.m);
-                    gui.canvas.push_obj(&computations_cubic.dual_m,false);
-                    computations_cubic.dual_m.show_in_wireframe(false);
-                    computations_cubic.dual_m.show_out_wireframe(false);
-
-                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
-                    gui.canvas.push_obj(&computations_cubic.m,false);
-                }else
-                {
-                    computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
-
-
-                }
-            }
-        }
-
-
-        gui.canvas.updateGL();
-
-    });
-    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    QSlider::connect(&gui.sl_error, &QSlider::valueChanged, [&]()
+    QSlider::connect(&gui.sl_error_neg, &QSlider::valueChanged, [&]()
     {
 
 
         if (gui.Err.isChecked())
         {
-            /*gui.canvas.pop(&computations_cubic.dual_m);
-            gui.canvas.pop(&computations_cubic.m_grid);*/
+            gui.canvas.pop(&computations_cubic.dual_m);
+            gui.canvas.pop(&computations_cubic.m_grid);
             if(gui.InsideError.isChecked())
             {
-                //                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-                //                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                //                //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
-
-                //                bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
-                //                computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                //                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
-                //                computations_cubic.max=find_max_norm(computations_cubic.GT);
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
-                computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
-
-                gui.canvas.pop(&computations_cubic.m);
-                gui.canvas.push_obj(&computations_cubic.m_grid,false);
-                computations_cubic.m_grid.show_in_wireframe(false);
-                computations_cubic.m_grid.show_out_wireframe(false);
-                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
-                computations_cubic.m.show_in_vert_color();
-                computations_cubic.m.show_out_vert_color();
-                gui.canvas.push_obj(&computations_cubic.m,false);
-
-            }else{
-
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-                computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+
+
+                bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
+                computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
+
                 computations_cubic.max=find_max_norm(computations_cubic.GT);
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
+                computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
+
+                gui.canvas.pop(&computations_cubic.m);
+                gui.canvas.push_obj(&computations_cubic.m_grid,false);
+                computations_cubic.m_grid.show_in_wireframe(false);
+                computations_cubic.m_grid.show_out_wireframe(false);
+                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
+                computations_cubic.m_grid.show_out_texture1D(TEXTURE_1D_HSV);
+                gui.canvas.push_obj(&computations_cubic.m,false);
+
+            }else{
+
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
+                computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
+                computations_cubic.max=find_max_norm(computations_cubic.GT);
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                 if(gui.method.currentIndex()==0)
                 {
@@ -549,37 +458,135 @@ void init_events(GUI & gui)
                     computations_cubic.dual_m.show_in_wireframe(false);
                     computations_cubic.dual_m.show_out_wireframe(false);
 
-                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
+                    computations_cubic.dual_m.show_out_texture1D(TEXTURE_1D_HSV);
                     gui.canvas.push_obj(&computations_cubic.m,false);
                 }else
                 {
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
+                    computations_cubic.m.show_out_texture1D(TEXTURE_1D_HSV);
 
 
                 }
             }
         }
 
+        if(gui.but.isChecked())
+        {
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
+            computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
+            computations_cubic.V_norm=computations_cubic.V;
+            computations_cubic.V_norm.normalize();
+            gui.canvas.push_obj(&computations_cubic.V_norm,false);
+
+
+        }
+        if(gui.ground_truth.isChecked())
+        {
+            computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+            computations_cubic.GT_norm=computations_cubic.GT;
+            computations_cubic.GT_norm.normalize();
+            gui.canvas.push_obj(&computations_cubic.GT_norm,false);
+
+        }
+
 
         gui.canvas.updateGL();
 
     });
-    /*//::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    QSlider::connect(&gui.sl_vector_fields, &QSlider::valueChanged, [&]()
+    //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    QSlider::connect(&gui.sl_error_pos, &QSlider::valueChanged, [&]()
     {
-        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
-        computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-        computations_cubic.V_norm=arrows_normalization(computations_cubic.m,computations_cubic.V,gui.method.currentIndex(),gui.sl_vector_fields.value());
 
 
+        if (gui.Err.isChecked())
+        {
+            gui.canvas.pop(&computations_cubic.dual_m);
+            gui.canvas.pop(&computations_cubic.m_grid);
+            if(gui.InsideError.isChecked())
+            {
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
+                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
 
-        gui.canvas.push_obj(&computations_cubic.V_norm,false);
+
+                bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
+                computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
+                computations_cubic.max=find_max_norm(computations_cubic.GT);
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
+                computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
+
+                gui.canvas.pop(&computations_cubic.m);
+                gui.canvas.push_obj(&computations_cubic.m_grid,false);
+                computations_cubic.m_grid.show_in_wireframe(false);
+                computations_cubic.m_grid.show_out_wireframe(false);
+                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
+                computations_cubic.m_grid.show_out_texture1D(TEXTURE_1D_HSV);
+                gui.canvas.push_obj(&computations_cubic.m,false);
+
+            }else{
+
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
+                computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
+                computations_cubic.max=find_max_norm(computations_cubic.GT);
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
+
+                if(gui.method.currentIndex()==0)
+                {
 
 
-    });*/
+                    computations_cubic.err_norm.copy_to_mesh(computations_cubic.dual_m);
+
+                    gui.canvas.pop(&computations_cubic.m);
+                    gui.canvas.push_obj(&computations_cubic.dual_m,false);
+                    computations_cubic.dual_m.show_in_wireframe(false);
+                    computations_cubic.dual_m.show_out_wireframe(false);
+
+
+                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
+                    computations_cubic.dual_m.show_out_texture1D(TEXTURE_1D_HSV);
+                    gui.canvas.push_obj(&computations_cubic.m,false);
+                }else
+                {
+                    computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
+                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
+                    computations_cubic.m.show_out_texture1D(TEXTURE_1D_HSV);
+
+
+                }
+            }
+        }
+
+        if(gui.but.isChecked())
+        {
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,1);
+            computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
+            computations_cubic.V_norm=computations_cubic.V;
+            computations_cubic.V_norm.normalize();
+            gui.canvas.push_obj(&computations_cubic.V_norm,false);
+
+
+        }
+        if(gui.ground_truth.isChecked())
+        {
+            computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
+            computations_cubic.GT_norm=computations_cubic.GT;
+            computations_cubic.GT_norm.normalize();
+            gui.canvas.push_obj(&computations_cubic.GT_norm,false);
+
+        }
+
+
+        gui.canvas.updateGL();
+
+    });
 
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
     QCheckBox::connect(&gui.ground_truth, &QCheckBox::stateChanged, [&]()
     {
         if(gui.ground_truth.isChecked())
@@ -595,7 +602,7 @@ void init_events(GUI & gui)
 
             if(gui.but.isChecked())
             {
-                //                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                //                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 //                computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                 //                computations_cubic.V_norm=computations_cubic.V;
                 //                computations_cubic.V_norm.normalize();
@@ -628,7 +635,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -654,11 +661,11 @@ void init_events(GUI & gui)
 
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -673,33 +680,33 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
 
                 }else
-                { computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                { computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -712,12 +719,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -736,7 +743,7 @@ void init_events(GUI & gui)
     {
         if(gui.but.isChecked())
         {
-            //computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            //computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -764,11 +771,11 @@ void init_events(GUI & gui)
 
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -782,22 +789,21 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
@@ -805,12 +811,12 @@ void init_events(GUI & gui)
 
                 }else{
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -824,12 +830,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -861,7 +867,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -888,11 +894,11 @@ void init_events(GUI & gui)
                 // computations_cubic.dual_m.clear();
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -904,33 +910,32 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
 
                 {
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
                 }
                 else{
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -943,12 +948,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -981,7 +986,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -1005,11 +1010,11 @@ void init_events(GUI & gui)
             {
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1023,33 +1028,32 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
 
                 }else{
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -1062,12 +1066,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -1085,7 +1089,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -1112,11 +1116,11 @@ void init_events(GUI & gui)
                 //computations_cubic.dual_m.clear();
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1130,33 +1134,32 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
 
                 }else{
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -1169,12 +1172,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -1188,12 +1191,12 @@ void init_events(GUI & gui)
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     QSpinBox::connect(&gui.a,static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), [&]()
     {
-        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
         computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -1219,11 +1222,11 @@ void init_events(GUI & gui)
                 //computations_cubic.dual_m.clear();
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1237,32 +1240,31 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
                 }else{
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -1275,12 +1277,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -1296,12 +1298,12 @@ void init_events(GUI & gui)
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     QSpinBox::connect(&gui.b,static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), [&]()
     {
-        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
         computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -1327,11 +1329,11 @@ void init_events(GUI & gui)
                 //computations_cubic.dual_m.clear();
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1345,22 +1347,21 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
@@ -1368,12 +1369,12 @@ void init_events(GUI & gui)
 
                 }else{
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -1386,12 +1387,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -1558,12 +1559,12 @@ void init_events(GUI & gui)
     //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
     QSpinBox::connect(&gui.c,static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged), [&]()
     {
-        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+        computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
         computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -1588,11 +1589,11 @@ void init_events(GUI & gui)
                 //computations_cubic.dual_m.clear();
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+                computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
                 computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1606,33 +1607,33 @@ void init_events(GUI & gui)
                 if(gui.InsideError.isChecked())
                 {
 
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                     //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                     bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                     gui.canvas.pop(&computations_cubic.m);
                     gui.canvas.push_obj(&computations_cubic.m_grid,false);
                     computations_cubic.m_grid.show_in_wireframe(false);
                     computations_cubic.m_grid.show_out_wireframe(false);
-                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                     computations_cubic.m.show_in_vert_color();
                     computations_cubic.m.show_out_vert_color();
                     gui.canvas.push_obj(&computations_cubic.m,false);
 
                 }else{
-                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                    computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                     computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                     computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                    computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                     computations_cubic.max=find_max_norm(computations_cubic.GT);
-                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                    computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                     if(gui.method.currentIndex()==0)
                     {
@@ -1645,12 +1646,12 @@ void init_events(GUI & gui)
                         computations_cubic.dual_m.show_in_wireframe(false);
                         computations_cubic.dual_m.show_out_wireframe(false);
 
-                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                         gui.canvas.push_obj(&computations_cubic.m,false);
                     }else
                     {
                         computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                        computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                     }
@@ -1671,15 +1672,15 @@ void init_events(GUI & gui)
             gui.canvas.pop(&computations_cubic.m_grid);
 
             gui.error.setDisabled(true);
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             find_max_min_values(computations_cubic.f,computations_cubic.max,computations_cubic.min);
-            computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max,gui.sl_scalar_field.value());
+            computations_cubic.f_norm=heat_map_normalization(computations_cubic.f,computations_cubic.min,computations_cubic.max);
 
             computations_cubic.f_norm.copy_to_mesh(computations_cubic.m);
-            computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+            computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
             if(gui.but.isChecked())
             {
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                 computations_cubic.V_norm=computations_cubic.V;
                 computations_cubic.V_norm.normalize();
@@ -1697,7 +1698,7 @@ void init_events(GUI & gui)
             }
             if(gui.but.isChecked())
             {
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                 computations_cubic.V_norm=computations_cubic.V;
                 computations_cubic.V_norm.normalize();
@@ -1726,15 +1727,15 @@ void init_events(GUI & gui)
 
             if(gui.InsideError.isChecked())
             {
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                 //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
                 bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
                 computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                 computations_cubic.max=find_max_norm(computations_cubic.GT);
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
                 computations_cubic.m_grid.slice(gui.s);
@@ -1743,7 +1744,7 @@ void init_events(GUI & gui)
                 gui.canvas.push_obj(&computations_cubic.m_grid,false);
                 computations_cubic.m_grid.show_in_wireframe(false);
                 computations_cubic.m_grid.show_out_wireframe(false);
-                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
                 computations_cubic.m.show_in_vert_color();
                 computations_cubic.m.show_out_vert_color();
                 computations_cubic.m.slice(gui.s);
@@ -1753,17 +1754,17 @@ void init_events(GUI & gui)
 
 
 
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+                computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
                 computations_cubic.max=find_max_norm(computations_cubic.GT);
-                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+                computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
                 if(gui.method.currentIndex()==0)
                 {
                     dual_mesh(computations_cubic.m, computations_cubic.dual_m,true);
-
+                    computations_cubic.dual_m.slice(gui.s);
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.dual_m);
 
                     gui.canvas.pop(&computations_cubic.m);
@@ -1771,19 +1772,20 @@ void init_events(GUI & gui)
                     computations_cubic.dual_m.show_in_wireframe(false);
                     computations_cubic.dual_m.show_out_wireframe(false);
 
-                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
+                    computations_cubic.dual_m.show_out_texture1D(TEXTURE_1D_HSV);
                     gui.canvas.push_obj(&computations_cubic.m,false);
                 }else
                 {
                     computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                    computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
                 }
             }
             if(gui.but.isChecked())
             {
-                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+                computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
                 computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
                 computations_cubic.V_norm=computations_cubic.V;
                 computations_cubic.V_norm.normalize();
@@ -1817,44 +1819,49 @@ void init_events(GUI & gui)
         {
 
 
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-            //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
+
 
             bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
             computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
             computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
             gui.canvas.pop(&computations_cubic.m);
             gui.canvas.push_obj(&computations_cubic.m_grid,false);
+            computations_cubic.m_grid.slice(gui.s);
             computations_cubic.m_grid.show_in_wireframe(false);
             computations_cubic.m_grid.show_out_wireframe(false);
-            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
+            computations_cubic.m_grid.show_out_texture1D(TEXTURE_1D_HSV);
             computations_cubic.m.show_in_vert_color();
             computations_cubic.m.show_out_vert_color();
 
             gui.canvas.push_obj(&computations_cubic.m,false);
 
+
+
         }else{
 
 
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
             if(gui.method.currentIndex()==0)
             {
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.dual_m);
+                computations_cubic.dual_m.slice(gui.s);
                 gui.canvas.pop(&computations_cubic.m);
                 gui.canvas.push_obj(&computations_cubic.dual_m,false);
                 computations_cubic.dual_m.show_in_wireframe(false);
-                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                 gui.canvas.push_obj(&computations_cubic.m,false);
 
 
@@ -1862,7 +1869,7 @@ void init_events(GUI & gui)
             }else
             {
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1884,22 +1891,22 @@ void init_events(GUI & gui)
         if(gui.InsideError.isChecked())
         {
 
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
             bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
             computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
             computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
             gui.canvas.pop(&computations_cubic.m);
             gui.canvas.push_obj(&computations_cubic.m_grid,false);
             computations_cubic.m_grid.show_in_wireframe(false);
             computations_cubic.m_grid.show_out_wireframe(false);
-            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
             computations_cubic.m.show_in_vert_color();
             computations_cubic.m.show_out_vert_color();
             gui.canvas.push_obj(&computations_cubic.m,false);
@@ -1908,12 +1915,12 @@ void init_events(GUI & gui)
         }else
 
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
             if(gui.method.currentIndex()==0)
             {
@@ -1921,7 +1928,7 @@ void init_events(GUI & gui)
                 gui.canvas.pop(&computations_cubic.m);
                 gui.canvas.push_obj(&computations_cubic.dual_m,false);
                 computations_cubic.dual_m.show_in_wireframe(false);
-                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                 gui.canvas.push_obj(&computations_cubic.m,false);
 
 
@@ -1930,7 +1937,7 @@ void init_events(GUI & gui)
 
 
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -1950,22 +1957,22 @@ void init_events(GUI & gui)
         if(gui.InsideError.isChecked())
         {
 
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
             bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
             computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
             computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
             gui.canvas.pop(&computations_cubic.m);
             gui.canvas.push_obj(&computations_cubic.m_grid,false);
             computations_cubic.m_grid.show_in_wireframe(false);
             computations_cubic.m_grid.show_out_wireframe(false);
-            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
             computations_cubic.m.show_in_vert_color();
             computations_cubic.m.show_out_vert_color();
             gui.canvas.push_obj(&computations_cubic.m,false);
@@ -1973,12 +1980,12 @@ void init_events(GUI & gui)
 
 
         }else{
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.mode.currentIndex(),gui.method.currentIndex(),gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
             if(gui.method.currentIndex()==0)
             {
@@ -1992,12 +1999,12 @@ void init_events(GUI & gui)
                 computations_cubic.dual_m.show_in_wireframe(false);
                 computations_cubic.dual_m.show_out_wireframe(false);
 
-                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                 gui.canvas.push_obj(&computations_cubic.m,false);
             }else
             {
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -2006,7 +2013,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -2039,22 +2046,22 @@ void init_events(GUI & gui)
 
         if(gui.InsideError.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             //computations_cubic.GT_grid=compute_values_on_grid(computations_cubic.m_grid, gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex());
 
             bring_the_field_inside(computations_cubic.m,computations_cubic.m_grid,computations_cubic.V,computations_cubic.V_grid,gui.method.currentIndex());
             computations_cubic.GT=compute_ground_truth(computations_cubic.m_grid,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),LSDD);
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,LSDD,gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
             computations_cubic.err_norm.copy_to_mesh(computations_cubic.m_grid);
 
             gui.canvas.pop(&computations_cubic.m);
             gui.canvas.push_obj(&computations_cubic.m_grid,false);
             computations_cubic.m_grid.show_in_wireframe(false);
             computations_cubic.m_grid.show_out_wireframe(false);
-            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_PARULA);
+            computations_cubic.m_grid.show_in_texture1D(TEXTURE_1D_HSV);
             computations_cubic.m.show_in_vert_color();
             computations_cubic.m.show_out_vert_color();
             gui.canvas.push_obj(&computations_cubic.m,false);
@@ -2062,12 +2069,12 @@ void init_events(GUI & gui)
         }else{
 
 
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.GT=compute_ground_truth(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),gui.method.currentIndex());
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
-            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V,computations_cubic.m,gui.method.currentIndex(),gui.type_of_vertices.currentIndex(),gui.mode.currentIndex());
+            computations_cubic.err=estimate_error(computations_cubic.GT,computations_cubic.V_grid,computations_cubic.m_grid,gui.mode.currentIndex(),LSDD,gui.ErrType.currentIndex(),gui.type_of_vertices.currentIndex());
             computations_cubic.max=find_max_norm(computations_cubic.GT);
-            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error.value());
+            computations_cubic.err_norm=heat_map_normalization(computations_cubic.err,0,computations_cubic.max,gui.sl_error_neg.value(),gui.sl_error_pos.value());
 
             if(gui.method.currentIndex()==0)
             {
@@ -2075,14 +2082,14 @@ void init_events(GUI & gui)
                 gui.canvas.pop(&computations_cubic.m);
                 gui.canvas.push_obj(&computations_cubic.dual_m,false);
                 computations_cubic.dual_m.show_in_wireframe(false);
-                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.dual_m.show_in_texture1D(TEXTURE_1D_HSV);
                 gui.canvas.push_obj(&computations_cubic.m,false);
 
 
             }else
             {
                 computations_cubic.err_norm.copy_to_mesh(computations_cubic.m);
-                computations_cubic.m.show_in_texture1D(TEXTURE_1D_PARULA);
+                computations_cubic.m.show_in_texture1D(TEXTURE_1D_HSV);
 
 
             }
@@ -2090,7 +2097,7 @@ void init_events(GUI & gui)
 
         if(gui.but.isChecked())
         {
-            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.cb_function.currentIndex(),0,0);
+            computations_cubic.f=get_scalar_field(computations_cubic.m,gui.a.value(),gui.b.value(),gui.c.value(),gui.cb_function.currentIndex(),0,0);
             computations_cubic.V=compute_field(computations_cubic.m,computations_cubic.f,gui.method.currentIndex());
             computations_cubic.V_norm=computations_cubic.V;
             computations_cubic.V_norm.normalize();
@@ -2148,8 +2155,8 @@ void init_events(GUI & gui)
 
         gui.show_heat_map.setChecked(false);
         gui.choose_heat_map.setDisabled(true);
-        gui.sl_scalar_field.setDisabled(true);
-        gui.sl_error.setDisabled(true);
+        gui.sl_error_neg.setDisabled(true);
+        gui.sl_error_pos.setDisabled(true);
         gui.error.setDisabled(true);
 
         gui.but.setChecked(false);

@@ -202,34 +202,25 @@ void init_events(GUI & gui)
             vec2i click(e->x(), e->y());
             if (c->unproject(click, p)) // transform click in a 3d point
             {
-                uint vid=closest_vertex(p,&computations.m);
-                Eigen::VectorXd X=fit_with_quadrics(computations.m,vid,computations.f);
-                for(int i=0;i<6;++i)
+
+                if(gui.InsideError.isChecked())
                 {
-                    std::cout<<X(i)<<std::endl;
+                    vid=closest_vertex(p,&computations.m_grid);
+                    std::cout << "vid in the grid:" << std::endl;
+                    std::cout << vid << std::endl;
+                }else if (gui.Err.isChecked())
+                {
+                    if(gui.method.currentIndex()!=0)
+                    {
+                        vid= closest_vertex(p,&computations.m);
+                    }else
+                    {
+                        vid = closest_vertex(p,&computations.dual_m);
+                    }
+
                 }
-//                if(gui.InsideError.isChecked())
-//                {
-//                    vid=closest_vertex(p,&computations.m_grid);
-//                    std::cout << "vid in the grid:" << std::endl;
-//                    std::cout << vid << std::endl;
-//                }else if (gui.Err.isChecked())
-//                {
-//                    if(gui.method.currentIndex()!=0)
-//                    {
-//                        vid= closest_vertex(p,&computations.m);
-//                    }else
-//                    {
-//                        vid = closest_vertex(p,&computations.dual_m);
-//                    }
-//                    std::cout << mode_names[gui.mode.currentIndex()].c_str() <<" error calculated:"<<std::endl;
-//                    std::cout<<computations.err[vid] << std::endl;
-//                }else
-//                {
-//                    vid= closest_vertex(p,&computations.m);
-//                    std::cout << computations.f[vid] << std::endl;
-//                    //std::cout << vid << std::endl;
-//                }
+                std::cout << mode_names[gui.mode.currentIndex()].c_str() <<" error calculated:"<<std::endl;
+                std::cout<<computations.err[vid] << std::endl;
             }
         }
         else if(e->modifiers() == Qt::ShiftModifier)
@@ -240,12 +231,8 @@ void init_events(GUI & gui)
             if (c->unproject(click, p)) // transform click in a 3d point
             {
 
-                uint vid = closest_vertex(p,&computations.m);
-                std::cout<<"Function value="<<computations.f[vid]<<std::endl;
-                std::cout<<"Vert position="<<std::endl;
-                std::cout<<computations.m.vert(vid)[0]<<std::endl;
-                std::cout<<computations.m.vert(vid)[1]<<std::endl;
-                std::cout<<computations.m.vert(vid)[2]<<std::endl;
+                uint vid = closest_vertex(p,&computations_cubic.m);
+                std::cout <<"Scalar Field value:"<< computations.f[vid] << std::endl;
             }
             c->updateGL();
 

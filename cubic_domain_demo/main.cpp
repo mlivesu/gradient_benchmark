@@ -46,10 +46,10 @@ int main(int argc, char **argv)
     init_events(gui);
 
 
-    make_tet_mesh(computations_cubic.m,50,1);
+    make_tet_mesh(computations_cubic.m,25,1);
 
 //
-    //make_tet_mesh(computations_cubic.m_grid,50,0);
+    make_tet_mesh(computations_cubic.m_grid,50,0);
     gui.canvas.push_obj(&computations_cubic.m);
 
 //    // CMD+1 to show mesh controls.

@@ -5,10 +5,9 @@
 
 enum scalar_functions
 {
-    Lobb,
-    Paraboloid,
-    Eggs,
-    Test,
+    FUNC_0,
+    FUNC_1,
+    FUNC_2,
     N_FUNCTIONS
 };
 enum error_type
@@ -29,8 +28,6 @@ enum methods
     AGS,
     LSDD,
     LR,
-    LRCentroids,
-    LSDDCentroids,
     N_METHODS
 
 };
@@ -46,9 +43,8 @@ enum tri
 {
     regular,
     Delaunay,
-    non_uniform,
     anisotropic,
-    grid
+    N_tri
 };
 
 enum type_of_vertices
@@ -61,12 +57,11 @@ enum type_of_vertices
 
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-std::string f_names[4]
+std::string f_names[3]
 {
 
-    "Lobb Function",
-    "Paraboloid",
     "Eggs",
+    "Paraboloid",
     "Test"
 
 };
@@ -74,15 +69,12 @@ std::string f_names[4]
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-std::string method_names[6]
+std::string method_names[4]
 {
     "PCE",
     "AGS",
      "LSDD",
-    "LR",
-    "LR_Centroids",
-    "LSDD_Centroids"
-
+    "LR"
 
 
 };
@@ -98,11 +90,10 @@ std::string canvas_names[4]
 };
 //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-std::string tri_names[4]
+std::string tri_names[3]
 {
     "Regular",
     "Delaunay",
-    "Non-Uniform",
     "Anisotropic"
 
 };
