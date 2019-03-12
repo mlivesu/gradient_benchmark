@@ -6,8 +6,8 @@ This is the benchmark used to run the experiments described in the paper "A Comp
 
 				   Requirements
 /:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
--Cinolib library (https://github.com/mlivesu/cinolib)
-
+- Cinolib library (https://github.com/mlivesu/cinolib)
+- Qt Creator (https://www.qt.io/download)
 
 				   Getting started
 /:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
